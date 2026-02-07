@@ -6,8 +6,8 @@ import xml.etree.ElementTree as ET
 QUERY = "john kraus"
 YEAR_START = 2025
 YEAR_END = 2100
-REQUEST_DELAY_S = 0.15  # polite cadence
 
+REQUEST_DELAY_S = 0.15  # polite cadence
 SEARCH_URL = "https://images-api.nasa.gov/search"
 ASSETS_BASE = "https://images-assets.nasa.gov/image"
 
@@ -26,20 +26,6 @@ def fetch_search_page(session: requests.Session, page: int):
     r = session.get(SEARCH_URL, params=params, timeout=30)
     r.raise_for_status()
     return r.json().get("collection", {}).get("items", [])
-
-
-def fetch_all_search_items(session: requests.Session):
-    """Fetch pages until the API returns an empty items list."""
-    all_items = []
-    page = 1
-    while True:
-        items = fetch_search_page(session, page)
-        if not items:
-            break
-        all_items.extend(items)
-        page += 1
-        time.sleep(REQUEST_DELAY_S)  # be polite to the search endpoint too
-    return all_items
 
 
 def make_full_url(nasa_id: str) -> str:
@@ -165,43 +151,55 @@ def _extract_datetimeoriginal_from_tiff(tiff: bytes) -> str | None:
 
 
 # -----------------------------
-# XMP keyword extraction
+# XMP keyword + caption extraction
 # -----------------------------
 def _find_xmp_packet(jpg: bytes) -> bytes | None:
-    # Look for an XMP envelope.
+    # Common markers:
+    # - '<x:xmpmeta' ... '</x:xmpmeta>'
+    # - sometimes preceded by "http://ns.adobe.com/xap/1.0/\x00"
     start = jpg.find(b"<x:xmpmeta")
-    if start == -1:
-        start = jpg.find(b"<xmpmeta")
-        if start == -1:
-            return None
+    if start != -1:
+        end = jpg.find(b"</x:xmpmeta>", start)
+        if end != -1:
+            end += len(b"</x:xmpmeta>")
+            return jpg[start:end]
 
-    end = jpg.find(b"</x:xmpmeta>", start)
-    end_tag = b"</x:xmpmeta>"
-    if end == -1:
-        end = jpg.find(b"</xmpmeta>", start)
-        end_tag = b"</xmpmeta>"
-        if end == -1:
-            return None
+    sig = b"http://ns.adobe.com/xap/1.0/\x00"
+    s2 = jpg.find(sig)
+    if s2 != -1:
+        tail = jpg[s2 + len(sig):]
+        s3 = tail.find(b"<x:xmpmeta")
+        if s3 != -1:
+            start = s2 + len(sig) + s3
+            end = jpg.find(b"</x:xmpmeta>", start)
+            if end != -1:
+                end += len(b"</x:xmpmeta>")
+                return jpg[start:end]
 
-    end += len(end_tag)
-    return jpg[start:end]
+    return None
 
 
 def _localname(tag: str) -> str:
     return tag.split("}", 1)[1] if "}" in tag else tag
 
 
-def _extract_keywords_from_xmp(xmp: bytes) -> list[str]:
+def _parse_xmp_root(xmp: bytes):
     try:
-        xmp_str = xmp.decode("utf-8", errors="ignore").strip("\x00 \t\r\n")
-        root = ET.fromstring(xmp_str)
+        xmp_str = xmp.decode("utf-8", errors="ignore")
+        xmp_str = xmp_str.strip("\x00 \t\r\n")
+        return ET.fromstring(xmp_str)
     except Exception:
+        return None
+
+
+def _extract_keywords_from_xmp(xmp: bytes) -> list[str]:
+    root = _parse_xmp_root(xmp)
+    if root is None:
         return []
 
     kws: list[str] = []
 
     # dc:subject -> rdf:Bag -> rdf:li
-    # search by localnames to avoid namespace hassle
     for el in root.iter():
         if _localname(el.tag) == "subject":
             for li in el.iter():
@@ -210,7 +208,7 @@ def _extract_keywords_from_xmp(xmp: bytes) -> list[str]:
                     if t:
                         kws.append(t)
 
-    # lr:hierarchicalSubject (optional): "Program|Artemis II"
+    # lr:hierarchicalSubject (optional): values like "Program|Artemis II"
     for el in root.iter():
         if _localname(el.tag) == "hierarchicalSubject":
             for li in el.iter():
@@ -223,7 +221,7 @@ def _extract_keywords_from_xmp(xmp: bytes) -> list[str]:
                             if leaf:
                                 kws.append(leaf)
 
-    # de-dupe preserve order
+    # Deduplicate while preserving order
     seen = set()
     out = []
     for k in kws:
@@ -231,6 +229,24 @@ def _extract_keywords_from_xmp(xmp: bytes) -> list[str]:
             seen.add(k)
             out.append(k)
     return out
+
+
+def _extract_caption_from_xmp(xmp: bytes) -> str:
+    """
+    Caption/description is usually:
+      dc:description -> rdf:Alt -> rdf:li (often xml:lang="x-default")
+    We'll take the first rdf:li text we find under a 'description' element.
+    """
+    root = _parse_xmp_root(xmp)
+    if root is None:
+        return ""
+
+    for el in root.iter():
+        if _localname(el.tag) == "description":
+            for li in el.iter():
+                if _localname(li.tag) == "li" and li.text:
+                    return li.text.strip()
+    return ""
 
 
 # -----------------------------
@@ -244,37 +260,47 @@ def fetch_header_bytes(session: requests.Session, full_url: str) -> bytes | None
     return r.content
 
 
-def parse_datetime_and_keywords(jpg_head: bytes) -> tuple[str | None, list[str]]:
+def parse_datetime_keywords_caption(jpg_head: bytes) -> tuple[str | None, list[str], str]:
+    # EXIF datetime
     dto = None
     tiff = _find_exif_app1_segment(jpg_head)
     if tiff:
         dto = _extract_datetimeoriginal_from_tiff(tiff)
 
+    # XMP keywords + caption
     keywords: list[str] = []
+    caption = ""
     xmp = _find_xmp_packet(jpg_head)
     if xmp:
         keywords = _extract_keywords_from_xmp(xmp)
+        caption = _extract_caption_from_xmp(xmp)
 
-    return dto, keywords
+    return dto, keywords, caption
 
 
 def main():
     session = requests.Session()
     session.headers.update({"User-Agent": "johnkraus-nasa-gallery/1.0"})
 
-    # Fetch all search results without a fixed page count
-    items = fetch_all_search_items(session)
-
+    # Fetch ALL pages until the API returns no items.
     records = []
-    for it in items:
-        data = (it.get("data") or [{}])[0]
-        nasa_id = data.get("nasa_id")
-        if not nasa_id:
-            continue
-        records.append({
-            "nasa_id": nasa_id,
-            "title": data.get("title", ""),
-        })
+    page = 1
+    while True:
+        items = fetch_search_page(session, page)
+        if not items:
+            break
+
+        for it in items:
+            data = (it.get("data") or [{}])[0]
+            nasa_id = data.get("nasa_id")
+            if not nasa_id:
+                continue
+            records.append({
+                "nasa_id": nasa_id,
+                "title": data.get("title", ""),
+            })
+
+        page += 1
 
     out = []
     for r in records:
@@ -288,19 +314,23 @@ def main():
         if not head:
             continue
 
-        dto, keywords = parse_datetime_and_keywords(head)
+        dto, keywords, caption = parse_datetime_keywords_caption(head)
         if not dto:
+            # You said DateTimeOriginal will always be preserved.
+            # If this ever happens, skip to avoid incorrect ordering.
             continue
 
         out.append({
             "nasa_id": nasa_id,
             "title": r["title"],
-            "id_date": dto,          # "YYYY:MM:DD HH:MM:SS"
-            "keywords": keywords,    # list[str]
+            "id_date": dto,           # "YYYY:MM:DD HH:MM:SS"
+            "keywords": keywords,      # list[str]
+            "caption": caption,        # str
             "large_url": large_url,
             "full_url": full_url,
         })
 
+    # Sort newest first by EXIF DateTimeOriginal, then nasa_id
     out.sort(key=lambda x: (x["id_date"], x["nasa_id"]), reverse=True)
 
     with open("gallery.json", "w") as f:
