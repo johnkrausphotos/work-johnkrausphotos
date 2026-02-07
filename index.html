@@ -43,15 +43,23 @@
         const div = document.createElement("div");
         div.className = "item";
 
+        const full = it.full_url || it.image_url;
+        const display = it.large_url || it.medium_url || it.image_url || it.full_url;
+
         const a = document.createElement("a");
-        a.href = it.full_url;          // full-res on click
+        a.href = full;
         a.target = "_blank";
         a.rel = "noopener";
 
         const img = document.createElement("img");
         img.loading = "lazy";
-        img.src = it.medium_url;       // medium-size for grid
+        img.src = display;
         img.alt = it.title || it.nasa_id;
+
+        // Fallback if large fails to load
+        img.onerror = () => {
+          if (img.src !== full) img.src = full;
+        };
 
         a.appendChild(img);
         div.appendChild(a);
