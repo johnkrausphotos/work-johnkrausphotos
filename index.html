@@ -11,7 +11,17 @@
     html, body { overflow-x: hidden; }
     *, *::before, *::after { box-sizing: border-box; }
 
-    :root { --wrap: 2200px; --sidepad: 20px; }
+    :root {
+      --wrap: 2200px;
+      --sidepad: 28px;
+
+      --jk-blue: #009cff;
+      --line: rgba(255,255,255,0.10);
+      --muted: rgba(255,255,255,0.62);
+      --muted2: rgba(255,255,255,0.40);
+      --gap: 16px;          /* spacing between images (JG margins) */
+      --rowh: 280px;        /* base row height */
+    }
 
     body {
       margin: 0;
@@ -20,15 +30,6 @@
       color: #fff;
     }
 
-    /* Site title */
-    .site-title {
-      color: #009cff;
-      font-weight: 700;
-      font-size: 20px;
-      text-transform: uppercase;
-    }
-
-    /* Centering is done on an outer wrapper */
     .wrap {
       max-width: var(--wrap);
       margin: 0 auto;
@@ -37,35 +38,51 @@
       width: 100%;
     }
 
-    header { border-bottom: 1px solid #222; }
-    header .wrap { padding-top: 16px; padding-bottom: 16px; }
+    /* Header (SmugMug-ish: big airy title, clean nav line) */
+    header { border-bottom: 1px solid var(--line); }
+    header .wrap { padding-top: 26px; padding-bottom: 18px; }
 
-    #status {
-      font-size: 12px;
-      color: #aaa;
-      margin-top: 6px;
-      white-space: pre-wrap;
+    .site-title {
+      color: var(--jk-blue);
+      font-weight: 500;
+      font-size: 44px;
+      letter-spacing: 0.34em;   /* spaced out */
+      text-transform: uppercase;
+      line-height: 1.05;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    /* Filter row */
-    #filters-wrap { border-bottom: 1px solid #222; }
-    #filters-wrap .wrap { padding-top: 10px; padding-bottom: 10px; }
+    /* Status / subhead */
+    #status {
+      font-size: 16px;
+      color: var(--muted);
+      margin-top: 18px;
+      line-height: 1.5;
+    }
+
+    /* Filters row (separate bar, like a nav strip) */
+    #filters-wrap { border-bottom: 1px solid var(--line); }
+    #filters-wrap .wrap { padding-top: 14px; padding-bottom: 14px; }
 
     #filters {
       display: flex;
-      gap: 18px;
+      gap: 26px;
       align-items: center;
       flex-wrap: wrap;
       margin: 0;
     }
 
     #filters a {
-      color: #aaa;
+      color: var(--muted2);
       text-decoration: none;
-      font-weight: 400;
-      font-size: 12px;
-      letter-spacing: 0;
-      padding-bottom: 6px;
+      font-weight: 500;
+      font-size: 14px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 0;
       border-bottom: 2px solid transparent;
     }
 
@@ -76,11 +93,22 @@
       border-bottom-color: #fff;
     }
 
+    /* Make the “Return…” link look slightly different (still nav-like) */
+    #filters a.home-link {
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      text-transform: none;
+      font-weight: 500;
+      border-bottom-color: transparent;
+      padding-right: 10px;
+    }
+    #filters a.home-link:hover { color: #fff; }
+
     /* Gallery */
     #gallery {
       width: 100%;
-      padding-top: 12px;
-      padding-bottom: 12px;
+      padding-top: 18px;
+      padding-bottom: 18px;
     }
 
     #gallery a img { border-radius: 0; }
@@ -89,9 +117,22 @@
 
     /* Infinite scroll sentinel */
     #loader { height: 1px; }
+
+    /* Responsive tweaks */
+    @media (max-width: 900px) {
+      :root { --sidepad: 18px; --rowh: 240px; --gap: 12px; }
+      .site-title { font-size: 30px; letter-spacing: 0.22em; }
+      #status { font-size: 14px; margin-top: 14px; }
+      #filters a { font-size: 13px; }
+    }
+
+    @media (max-width: 520px) {
+      .site-title { font-size: 22px; letter-spacing: 0.18em; }
+      #filters { gap: 18px; }
+    }
   </style>
 </head>
-  
+
 <body>
   <header>
     <div class="wrap">
@@ -103,9 +144,7 @@
   <div id="filters-wrap">
     <div class="wrap">
       <nav id="filters" aria-label="Filters">
-        <a href="https://www.johnkrausphotos.com" class="home-link">
-          ← Return to site homepage
-        </a>
+        <a href="https://www.johnkrausphotos.com" class="home-link">← Return to site homepage</a>
         <a href="#all" data-filter="all" class="active">All NASA images</a>
         <a href="#artemis2" data-filter="artemis2">Artemis II</a>
         <a href="#roadshow" data-filter="roadshow">Jan. ’26 Roadshow</a>
@@ -133,7 +172,6 @@
     }
 
     function isJan2026(item){
-      // id_date format: "YYYY:MM:DD HH:MM:SS"
       const d = (item.id_date || "");
       return d.startsWith("2026:01:");
     }
@@ -145,7 +183,7 @@
     function applyFilter(items, key){
       if (key === "artemis2") return items.filter(matchesArtemis2);
       if (key === "roadshow") return items.filter(matchesRoadshowJan2026);
-      return items; // all
+      return items;
     }
 
     function getFilterFromHash(){
@@ -173,11 +211,17 @@
 
       const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
 
+      function cssVarNumber(name, fallback){
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        const n = parseFloat(v);
+        return Number.isFinite(n) ? n : fallback;
+      }
+
       function initJG(){
         if (!hasJG) return;
         jQuery("#gallery").justifiedGallery({
-          rowHeight: 260,
-          margins: 16,
+          rowHeight: cssVarNumber("--rowh", 280),
+          margins: cssVarNumber("--gap", 16),
           lastRow: "nojustify"
         });
       }
@@ -215,11 +259,7 @@
         for (const e of entries) {
           if (e.isIntersecting) appendNextBatch();
         }
-      }, {
-        root: null,
-        rootMargin: "1200px 0px",
-        threshold: 0
-      });
+      }, { root: null, rootMargin: "1200px 0px", threshold: 0 });
 
       function appendNextBatch() {
         if (isAppending) return;
@@ -238,15 +278,11 @@
         }
         galleryEl.appendChild(frag);
 
-        if (hasJG) {
-          jQuery("#gallery").justifiedGallery("norewind");
-        }
+        if (hasJG) jQuery("#gallery").justifiedGallery("norewind");
 
         isAppending = false;
 
-        if (idx >= items.length) {
-          observer.disconnect();
-        }
+        if (idx >= items.length) observer.disconnect();
       }
 
       function resetGalleryForFilter(newFilter){
@@ -255,24 +291,21 @@
 
         items = applyFilter(allItems, currentFilter);
 
-        // clear + reset counters
         galleryEl.innerHTML = "";
         idx = 0;
         isAppending = false;
 
-        // reset layout
         destroyJG();
         initJG();
 
-        // restart infinite scroll
         observer.disconnect();
         observer.observe(loaderEl);
 
         appendNextBatch();
       }
 
-      // Wire clicks so filter actually changes
-      document.querySelectorAll("#filters a").forEach(a => {
+      // Filter clicks (ignore the external homepage link)
+      document.querySelectorAll("#filters a[data-filter]").forEach(a => {
         a.addEventListener("click", (ev) => {
           ev.preventDefault();
           const f = a.dataset.filter || "all";
@@ -281,13 +314,11 @@
         });
       });
 
-      // Back/forward support
       window.addEventListener("hashchange", () => {
         const f = getFilterFromHash();
         if (f !== currentFilter) resetGalleryForFilter(f);
       });
 
-      // Initial
       setActiveFilterLink(currentFilter);
       initJG();
       observer.observe(loaderEl);
