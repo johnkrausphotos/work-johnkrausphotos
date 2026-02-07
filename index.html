@@ -40,7 +40,7 @@
       const items = await res.json();
       status.textContent =
         `Displaying ${items.length} photos.\n` +
-        `Click any image to open the full-resolution file on NASA.`;
+        `Click any image to open the full-resolution file with embeded metadata via images.nasa.gov.`;
 
       const frag = document.createDocumentFragment();
       for (const it of items) {
