@@ -4,31 +4,34 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NASA Gallery</title>
+
+  <!-- Justified rows (Flickr-style) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justifiedgallery@3.8.1/dist/css/justifiedGallery.min.css">
+
   <style>
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
     header { padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
-    .grid { column-count: 4; column-gap: 10px; padding: 12px; }
-    @media (max-width: 1200px){ .grid{ column-count: 3; } }
-    @media (max-width: 800px){ .grid{ column-count: 2; } }
-    @media (max-width: 520px){ .grid{ column-count: 1; } }
-    .item { break-inside: avoid; margin: 0 0 10px; position: relative; }
-    img { width: 100%; height: auto; display: block; border-radius: 10px; }
-    .cap { font-size: 12px; color: #444; padding: 6px 2px 0; }
-    a { color: inherit; text-decoration: none; }
+    #status { font-size:12px;color:#666;margin-top:6px; }
+    #gallery { padding: 12px; }
+    /* Rounded corners */
+    #gallery a img { border-radius: 10px; }
   </style>
 </head>
 <body>
   <header>
     <div><strong>NASA Gallery</strong></div>
-    <div id="status" style="font-size:12px;color:#666;margin-top:6px;">Loading…</div>
+    <div id="status">Loading…</div>
   </header>
 
-  <div id="grid" class="grid"></div>
+  <div id="gallery"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/justifiedgallery@3.8.1/dist/js/jquery.justifiedGallery.min.js"></script>
 
   <script>
     async function main(){
       const status = document.getElementById("status");
-      const grid = document.getElementById("grid");
+      const gallery = document.getElementById("gallery");
 
       const res = await fetch("./gallery.json", { cache: "no-store" });
       if (!res.ok) {
@@ -39,10 +42,9 @@
       const items = await res.json();
       status.textContent = `Loaded ${items.length} items.`;
 
+      // Build anchors + images
+      const frag = document.createDocumentFragment();
       for (const it of items) {
-        const div = document.createElement("div");
-        div.className = "item";
-
         const full = it.full_url || it.image_url;
         const display = it.large_url || it.medium_url || it.image_url || it.full_url;
 
@@ -50,27 +52,25 @@
         a.href = full;
         a.target = "_blank";
         a.rel = "noopener";
+        a.title = `${it.nasa_id}${it.title ? " — " + it.title : ""}`;
 
         const img = document.createElement("img");
-        img.loading = "lazy";
-        img.src = display;
         img.alt = it.title || it.nasa_id;
-
-        // Fallback if large fails to load
-        img.onerror = () => {
-          if (img.src !== full) img.src = full;
-        };
+        img.src = display;
+        img.loading = "lazy";
+        img.onerror = () => { if (img.src !== full) img.src = full; };
 
         a.appendChild(img);
-        div.appendChild(a);
-
-        const cap = document.createElement("div");
-        cap.className = "cap";
-        cap.textContent = `${it.nasa_id}${it.title ? " — " + it.title : ""}`;
-        div.appendChild(cap);
-
-        grid.appendChild(div);
+        frag.appendChild(a);
       }
+      gallery.appendChild(frag);
+
+      // Apply Flickr-style justified rows
+      $("#gallery").justifiedGallery({
+        rowHeight: 260,     // tweak to taste
+        margins: 8,
+        lastRow: "nojustify"
+      });
     }
 
     main().catch(err => {
