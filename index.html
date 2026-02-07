@@ -6,7 +6,7 @@
   <title>NASA Photography by John Kraus</title>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css">
-  
+
   <style>
     html, body { overflow-x: hidden; }
     *, *::before, *::after { box-sizing: border-box; }
@@ -21,12 +21,11 @@
     }
 
     /* Site title */
-    site-title {
+    .site-title {
       color: #009cff;
       font-weight: 700;
       text-transform: uppercase;
     }
-    
 
     /* Centering is done on an outer wrapper */
     .wrap {
@@ -47,7 +46,7 @@
       white-space: pre-wrap;
     }
 
-    /* Filter row (moved OUTSIDE header; defaults back to normal body typography) */
+    /* Filter row */
     #filters-wrap { border-bottom: 1px solid #222; }
     #filters-wrap .wrap { padding-top: 10px; padding-bottom: 10px; }
 
@@ -58,22 +57,25 @@
       flex-wrap: wrap;
       margin: 0;
     }
+
     #filters a {
       color: #aaa;
       text-decoration: none;
-      font-weight: 400;          /* revert: normal weight */
-      font-size: 12px;           /* revert: small */
-      letter-spacing: 0;         /* revert */
+      font-weight: 400;
+      font-size: 12px;
+      letter-spacing: 0;
       padding-bottom: 6px;
       border-bottom: 2px solid transparent;
     }
+
     #filters a:hover { color: #fff; }
+
     #filters a.active {
       color: #fff;
       border-bottom-color: #fff;
     }
 
-    /* Important: the plugin target should be 100% of its wrapper */
+    /* Gallery */
     #gallery {
       width: 100%;
       padding-top: 12px;
@@ -84,19 +86,21 @@
 
     a { color: inherit; }
 
-    /* keep the sentinel present but visually empty */
+    /* Infinite scroll sentinel */
     #loader { height: 1px; }
   </style>
 </head>
+
 <body>
   <header>
     <div class="wrap">
-      <div><strong>NASA PHOTOGRAPHY BY JOHN KRAUS</strong></div>
-      <div id="status">Click any image to download in full-resolution with embedded metadata via images.nasa.gov</div>
+      <div class="site-title">NASA PHOTOGRAPHY BY JOHN KRAUS</div>
+      <div id="status">
+        Click any image to download in full-resolution with embedded metadata via images.nasa.gov
+      </div>
     </div>
   </header>
 
-  <!-- Filters moved OUTSIDE the header to restore original small/normal look -->
   <div id="filters-wrap">
     <div class="wrap">
       <nav id="filters" aria-label="Filters">
@@ -107,7 +111,6 @@
     </div>
   </div>
 
-  <!-- Wrap centers; #gallery is the plugin target -->
   <div class="wrap">
     <div id="gallery"></div>
   </div>
@@ -120,181 +123,78 @@
   <script>
     const BATCH_SIZE = 100;
 
-    // --- filters ---
-    function normalize(s){ return (s || "").toString().toLowerCase(); }
+    function normalize(s){ return (s || "").toLowerCase(); }
 
     function matchesArtemis2(item){
-      const kws = Array.isArray(item.keywords) ? item.keywords : [];
-      return kws.some(k => normalize(k) === "artemis ii");
+      return (item.keywords || []).some(k => normalize(k) === "artemis ii");
     }
 
     function isJan2026(item){
-      // id_date format: "YYYY:MM:DD HH:MM:SS"
-      const d = (item.id_date || "");
-      return d.startsWith("2026:01:");
+      return (item.id_date || "").startsWith("2026:01:");
     }
 
     function matchesRoadshowJan2026(item){
-      // Caption contains "roadshow" (case-insensitive) AND captured in Jan 2026
-      const cap = normalize(item.caption);
-      return isJan2026(item) && cap.includes("roadshow");
+      return isJan2026(item) && normalize(item.caption).includes("roadshow");
     }
 
-    function applyFilter(items, filterKey){
-      if (filterKey === "artemis2") return items.filter(matchesArtemis2);
-      if (filterKey === "roadshow") return items.filter(matchesRoadshowJan2026);
-      return items; // all
-    }
-
-    function setActiveFilterLink(filterKey){
-      document.querySelectorAll("#filters a").forEach(a => {
-        a.classList.toggle("active", a.dataset.filter === filterKey);
-      });
+    function applyFilter(items, key){
+      if (key === "artemis2") return items.filter(matchesArtemis2);
+      if (key === "roadshow") return items.filter(matchesRoadshowJan2026);
+      return items;
     }
 
     function getFilterFromHash(){
-      const h = (location.hash || "").replace("#", "");
-      if (h === "artemis2") return "artemis2";
-      if (h === "roadshow") return "roadshow";
-      return "all";
+      const h = location.hash.replace("#","");
+      return ["artemis2","roadshow"].includes(h) ? h : "all";
     }
 
     async function main(){
-      const galleryEl = document.getElementById("gallery");
-      const loaderEl = document.getElementById("loader");
+      const gallery = document.getElementById("gallery");
+      const loader = document.getElementById("loader");
 
       const res = await fetch("./gallery.json", { cache: "no-store" });
       if (!res.ok) return;
 
       const allItems = await res.json();
-      if (!allItems.length) return;
-
-      const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
-      if (hasJG) {
-        jQuery("#gallery").justifiedGallery({
-          rowHeight: 260,
-          margins: 8,
-          lastRow: "nojustify"
-        });
-      }
-
-      let currentFilter = getFilterFromHash();
-      let items = applyFilter(allItems, currentFilter);
-
+      let filter = getFilterFromHash();
+      let items = applyFilter(allItems, filter);
       let idx = 0;
-      let isAppending = false;
 
-      function makeAnchor(it) {
-        const full = it.full_url || it.image_url;
-        const display = it.large_url || it.medium_url || it.image_url || it.full_url;
+      $("#gallery").justifiedGallery({
+        rowHeight: 260,
+        margins: 8,
+        lastRow: "nojustify"
+      });
 
-        const a = document.createElement("a");
-        a.href = full;
-        a.target = "_blank";
-        a.rel = "noopener";
-
-        const img = document.createElement("img");
-        img.alt = it.title || it.nasa_id || "";
-        img.src = display;
-        img.loading = "lazy";
-        img.onerror = () => { if (full && img.src !== full) img.src = full; };
-
-        a.appendChild(img);
-        return a;
-      }
-
-      function resetGalleryForFilter(newFilter){
-        currentFilter = newFilter;
-        setActiveFilterLink(currentFilter);
-
-        // Recompute filtered list
-        items = applyFilter(allItems, currentFilter);
-
-        // Clear DOM
-        galleryEl.innerHTML = "";
-        idx = 0;
-        isAppending = false;
-
-        // Reset / re-init layout
-        if (hasJG) {
-          jQuery("#gallery").justifiedGallery("destroy");
-          jQuery("#gallery").justifiedGallery({
-            rowHeight: 260,
-            margins: 8,
-            lastRow: "nojustify"
-          });
-        }
-
-        // Restart infinite scroll
-        observer.disconnect();
-        observer.observe(loaderEl);
-
-        appendNextBatch();
-      }
-
-      function appendNextBatch() {
-        if (isAppending) return;
-        if (idx >= items.length) {
-          observer.disconnect();
-          return;
-        }
-
-        isAppending = true;
-
-        const frag = document.createDocumentFragment();
+      function append(){
         const end = Math.min(idx + BATCH_SIZE, items.length);
+        const frag = document.createDocumentFragment();
+
         for (; idx < end; idx++) {
-          frag.appendChild(makeAnchor(items[idx]));
+          const it = items[idx];
+          const a = document.createElement("a");
+          a.href = it.full_url;
+          a.target = "_blank";
+          const img = document.createElement("img");
+          img.src = it.large_url;
+          img.loading = "lazy";
+          a.appendChild(img);
+          frag.appendChild(a);
         }
-        galleryEl.appendChild(frag);
 
-        if (hasJG) {
-          jQuery("#gallery").justifiedGallery("norewind");
-        }
-
-        isAppending = false;
-
-        if (idx >= items.length) {
-          observer.disconnect();
-        }
+        gallery.appendChild(frag);
+        $("#gallery").justifiedGallery("norewind");
       }
 
-      const observer = new IntersectionObserver((entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) appendNextBatch();
-        }
-      }, {
-        root: null,
-        rootMargin: "1200px 0px",
-        threshold: 0
-      });
+      const observer = new IntersectionObserver(e => {
+        if (e[0].isIntersecting && idx < items.length) append();
+      }, { rootMargin: "1200px" });
 
-      // Filter link clicks
-      document.querySelectorAll("#filters a").forEach(a => {
-        a.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          const f = a.dataset.filter || "all";
-          // update hash so back/forward works
-          location.hash = (f === "all") ? "all" : f;
-          resetGalleryForFilter(f);
-        });
-      });
-
-      // React to manual hash change / back button
-      window.addEventListener("hashchange", () => {
-        const f = getFilterFromHash();
-        if (f !== currentFilter) resetGalleryForFilter(f);
-      });
-
-      // Initial render
-      setActiveFilterLink(currentFilter);
-      observer.observe(loaderEl);
-      appendNextBatch();
+      observer.observe(loader);
+      append();
     }
 
-    main().catch(() => {});
+    main();
   </script>
 </body>
 </html>
-
-<!-- deploy -->
