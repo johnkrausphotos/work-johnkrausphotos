@@ -6,7 +6,6 @@ import xml.etree.ElementTree as ET
 QUERY = "john kraus"
 YEAR_START = 2025
 YEAR_END = 2100
-PAGES_TO_FETCH = 10
 REQUEST_DELAY_S = 0.15  # polite cadence
 
 SEARCH_URL = "https://images-api.nasa.gov/search"
@@ -27,6 +26,20 @@ def fetch_search_page(session: requests.Session, page: int):
     r = session.get(SEARCH_URL, params=params, timeout=30)
     r.raise_for_status()
     return r.json().get("collection", {}).get("items", [])
+
+
+def fetch_all_search_items(session: requests.Session):
+    """Fetch pages until the API returns an empty items list."""
+    all_items = []
+    page = 1
+    while True:
+        items = fetch_search_page(session, page)
+        if not items:
+            break
+        all_items.extend(items)
+        page += 1
+        time.sleep(REQUEST_DELAY_S)  # be polite to the search endpoint too
+    return all_items
 
 
 def make_full_url(nasa_id: str) -> str:
@@ -152,34 +165,26 @@ def _extract_datetimeoriginal_from_tiff(tiff: bytes) -> str | None:
 
 
 # -----------------------------
-# XMP keyword extraction (dc:subject, plus lr:hierarchicalSubject if present)
+# XMP keyword extraction
 # -----------------------------
 def _find_xmp_packet(jpg: bytes) -> bytes | None:
-    # Common markers:
-    # - '<x:xmpmeta' ... '</x:xmpmeta>'
-    # - sometimes packed as "http://ns.adobe.com/xap/1.0/\x00" then XML
+    # Look for an XMP envelope.
     start = jpg.find(b"<x:xmpmeta")
-    if start != -1:
-        end = jpg.find(b"</x:xmpmeta>", start)
-        if end != -1:
-            end += len(b"</x:xmpmeta>")
-            return jpg[start:end]
+    if start == -1:
+        start = jpg.find(b"<xmpmeta")
+        if start == -1:
+            return None
 
-    # Try Adobe XMP header
-    sig = b"http://ns.adobe.com/xap/1.0/\x00"
-    s2 = jpg.find(sig)
-    if s2 != -1:
-        # XML usually starts shortly after this signature
-        tail = jpg[s2 + len(sig):]
-        s3 = tail.find(b"<x:xmpmeta")
-        if s3 != -1:
-            start = s2 + len(sig) + s3
-            end = jpg.find(b"</x:xmpmeta>", start)
-            if end != -1:
-                end += len(b"</x:xmpmeta>")
-                return jpg[start:end]
+    end = jpg.find(b"</x:xmpmeta>", start)
+    end_tag = b"</x:xmpmeta>"
+    if end == -1:
+        end = jpg.find(b"</xmpmeta>", start)
+        end_tag = b"</xmpmeta>"
+        if end == -1:
+            return None
 
-    return None
+    end += len(end_tag)
+    return jpg[start:end]
 
 
 def _localname(tag: str) -> str:
@@ -187,43 +192,38 @@ def _localname(tag: str) -> str:
 
 
 def _extract_keywords_from_xmp(xmp: bytes) -> list[str]:
-    # Be tolerant to junk before/after XML
     try:
-        xmp_str = xmp.decode("utf-8", errors="ignore")
-        xmp_str = xmp_str.strip("\x00 \t\r\n")
+        xmp_str = xmp.decode("utf-8", errors="ignore").strip("\x00 \t\r\n")
         root = ET.fromstring(xmp_str)
     except Exception:
         return []
 
     kws: list[str] = []
 
-    # 1) dc:subject -> rdf:Bag -> rdf:li
-    # We'll search by localnames to avoid namespace headaches.
+    # dc:subject -> rdf:Bag -> rdf:li
+    # search by localnames to avoid namespace hassle
     for el in root.iter():
         if _localname(el.tag) == "subject":
-            # Expect Bag/Li under subject
             for li in el.iter():
                 if _localname(li.tag) == "li" and li.text:
                     t = li.text.strip()
                     if t:
                         kws.append(t)
 
-    # 2) Lightroom hierarchicalSubject (optional): values like "Program|Artemis II"
-    # Finder often shows the flat keywords, but this is cheap to include.
+    # lr:hierarchicalSubject (optional): "Program|Artemis II"
     for el in root.iter():
         if _localname(el.tag) == "hierarchicalSubject":
             for li in el.iter():
                 if _localname(li.tag) == "li" and li.text:
                     t = li.text.strip()
                     if t:
-                        # Flatten "A|B|C" to "C" + also keep full path? We'll keep full token too.
                         kws.append(t)
                         if "|" in t:
                             leaf = t.split("|")[-1].strip()
                             if leaf:
                                 kws.append(leaf)
 
-    # Deduplicate while preserving order
+    # de-dupe preserve order
     seen = set()
     out = []
     for k in kws:
@@ -245,13 +245,11 @@ def fetch_header_bytes(session: requests.Session, full_url: str) -> bytes | None
 
 
 def parse_datetime_and_keywords(jpg_head: bytes) -> tuple[str | None, list[str]]:
-    # EXIF datetime
     dto = None
     tiff = _find_exif_app1_segment(jpg_head)
     if tiff:
         dto = _extract_datetimeoriginal_from_tiff(tiff)
 
-    # XMP keywords
     keywords: list[str] = []
     xmp = _find_xmp_packet(jpg_head)
     if xmp:
@@ -264,9 +262,8 @@ def main():
     session = requests.Session()
     session.headers.update({"User-Agent": "johnkraus-nasa-gallery/1.0"})
 
-    items = []
-    for page in range(1, PAGES_TO_FETCH + 1):
-        items.extend(fetch_search_page(session, page))
+    # Fetch all search results without a fixed page count
+    items = fetch_all_search_items(session)
 
     records = []
     for it in items:
@@ -293,24 +290,22 @@ def main():
 
         dto, keywords = parse_datetime_and_keywords(head)
         if not dto:
-            # You said DateTimeOriginal will always be preserved.
-            # If this ever happens, skip to avoid incorrect ordering.
             continue
 
         out.append({
             "nasa_id": nasa_id,
             "title": r["title"],
-            "id_date": dto,      # "YYYY:MM:DD HH:MM:SS"
-            "keywords": keywords,  # list[str]
+            "id_date": dto,          # "YYYY:MM:DD HH:MM:SS"
+            "keywords": keywords,    # list[str]
             "large_url": large_url,
             "full_url": full_url,
         })
 
-    # Sort newest first by EXIF DateTimeOriginal, then nasa_id
     out.sort(key=lambda x: (x["id_date"], x["nasa_id"]), reverse=True)
 
     with open("gallery.json", "w") as f:
         json.dump(out, f, indent=2)
+
 
 if __name__ == "__main__":
     main()
