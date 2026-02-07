@@ -12,7 +12,7 @@
     header { padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
     #status { font-size:12px;color:#666;margin-top:6px; white-space: pre-wrap; }
     #gallery { padding: 12px; }
-    #gallery a img { border-radius: 1px; }
+    #gallery a img { border-radius: 0; } /* square corners */
   </style>
 </head>
 <body>
@@ -23,9 +23,7 @@
 
   <div id="gallery"></div>
 
-  <!-- Load jQuery first -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <!-- Then load Justified Gallery plugin -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
 
   <script>
@@ -40,8 +38,9 @@
       }
 
       const items = await res.json();
-      status.textContent = `Displaying ${items.length} photos`;
-      status.textContent = `Click each image for full-resolution and embeded metadata;
+      status.textContent =
+        `Displaying ${items.length} photos.\n` +
+        `Click any image to open the full-resolution file on NASA.`;
 
       const frag = document.createDocumentFragment();
       for (const it of items) {
@@ -52,7 +51,7 @@
         a.href = full;
         a.target = "_blank";
         a.rel = "noopener";
-        
+
         const img = document.createElement("img");
         img.alt = it.title || it.nasa_id;
         img.src = display;
@@ -64,14 +63,11 @@
       }
       gallery.appendChild(frag);
 
-      // If the plugin didn't load, show a clear message and stop.
       if (!window.jQuery || !jQuery.fn || typeof jQuery.fn.justifiedGallery !== "function") {
-        status.textContent += "\nJustified layout failed to load (CDN blocked or script failed). Showing basic grid instead.";
-        // Basic fallback: keep images as-is; browser will just flow them.
+        status.textContent += "\nJustified layout failed to load (CDN blocked). Showing basic layout.";
         return;
       }
 
-      // Apply Flickr-style justified rows
       jQuery("#gallery").justifiedGallery({
         rowHeight: 260,
         margins: 8,
