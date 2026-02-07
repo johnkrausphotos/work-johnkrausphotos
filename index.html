@@ -11,18 +11,25 @@
     html, body { overflow-x: hidden; }
     *, *::before, *::after { box-sizing: border-box; }
 
+    :root { --wrap: 2200px; --sidepad: 20px; }
+
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
-    header { padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
+
+    /* Centered, consistent "page" width (fixes right/left asymmetry) */
+    .wrap {
+      max-width: var(--wrap);
+      margin: 0 auto;
+      padding-left: var(--sidepad);
+      padding-right: var(--sidepad);
+      width: 100%;
+    }
+
+    header { border-bottom: 1px solid #e5e5e5; }
+    header .wrap { padding-top: 16px; padding-bottom: 16px; }
 
     #status { font-size:12px;color:#666;margin-top:6px; white-space: pre-wrap; }
 
-    /* inset container */
-    #gallery {
-      max-width: 95vw;
-      margin: 0 auto;
-      padding: 12px;
-      width: 100%;
-    }
+    #gallery.wrap { padding-top: 12px; padding-bottom: 12px; }
 
     #gallery a img { border-radius: 0; }
 
@@ -32,11 +39,13 @@
 </head>
 <body>
   <header>
-    <div><strong>NASA Photography by John Kraus</strong></div>
-    <div id="status">Click any image to download in full-resolution with embedded metadata via images.nasa.gov</div>
+    <div class="wrap">
+      <div><strong>NASA Photography by John Kraus</strong></div>
+      <div id="status">Click any image to download in full-resolution with embedded metadata via images.nasa.gov</div>
+    </div>
   </header>
 
-  <div id="gallery"></div>
+  <div id="gallery" class="wrap"></div>
   <div id="loader"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
