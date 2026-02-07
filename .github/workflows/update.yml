@@ -1,0 +1,33 @@
+name: Update gallery.json
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"   # every hour (UTC)
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: python -m pip install --upgrade pip requests
+
+      - name: Generate gallery.json
+        run: python update_gallery.py
+
+      - name: Commit gallery.json (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gallery.json
+          git commit -m "Update gallery.json" || exit 0
+          git push
