@@ -34,6 +34,28 @@
 
     #status { font-size: 12px; color: #aaa; margin-top: 6px; white-space: pre-wrap; }
 
+    /* simple filter links */
+    #filters {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #aaa;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    #filters a {
+      color: #aaa;
+      text-decoration: none;
+      padding: 2px 0;
+    }
+    #filters a.active {
+      color: #fff;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    #filters a:hover { color: #fff; }
+
     /* Important: the plugin target should be 100% of its wrapper */
     #gallery {
       width: 100%;
@@ -54,6 +76,11 @@
     <div class="wrap">
       <div><strong>NASA Photography by John Kraus</strong></div>
       <div id="status">Click any image to download in full-resolution with embedded metadata via images.nasa.gov</div>
+
+      <div id="filters">
+        <a href="#" id="filter-all" class="active">All</a>
+        <a href="#" id="filter-artemis">Artemis II</a>
+      </div>
     </div>
   </header>
 
@@ -69,16 +96,20 @@
 
   <script>
     const BATCH_SIZE = 100;
+    const FILTER_KEYWORD = "Artemis II"; // exact match against it.keywords[]
 
     async function main(){
       const galleryEl = document.getElementById("gallery");
       const loaderEl = document.getElementById("loader");
 
+      const allLink = document.getElementById("filter-all");
+      const artLink = document.getElementById("filter-artemis");
+
       const res = await fetch("./gallery.json", { cache: "no-store" });
       if (!res.ok) return;
 
-      const items = await res.json();
-      if (!items.length) return;
+      const allItems = await res.json();
+      if (!allItems.length) return;
 
       const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
       if (hasJG) {
@@ -89,8 +120,19 @@
         });
       }
 
+      let currentItems = allItems;
       let idx = 0;
       let isAppending = false;
+
+      const observer = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) appendNextBatch();
+        }
+      }, {
+        root: null,
+        rootMargin: "1200px 0px",
+        threshold: 0
+      });
 
       function makeAnchor(it) {
         const full = it.full_url || it.image_url;
@@ -111,16 +153,44 @@
         return a;
       }
 
+      function resetGallery() {
+        idx = 0;
+        isAppending = false;
+
+        // clear DOM
+        galleryEl.innerHTML = "";
+
+        // reset justified gallery layout
+        if (hasJG) {
+          try { jQuery("#gallery").justifiedGallery("destroy"); } catch (_) {}
+          jQuery("#gallery").justifiedGallery({
+            rowHeight: 260,
+            margins: 8,
+            lastRow: "nojustify"
+          });
+        }
+
+        // restart observer
+        observer.disconnect();
+        observer.observe(loaderEl);
+
+        // render first batch
+        appendNextBatch();
+      }
+
       function appendNextBatch() {
         if (isAppending) return;
-        if (idx >= items.length) return;
+        if (idx >= currentItems.length) {
+          observer.disconnect();
+          return;
+        }
 
         isAppending = true;
 
         const frag = document.createDocumentFragment();
-        const end = Math.min(idx + BATCH_SIZE, items.length);
+        const end = Math.min(idx + BATCH_SIZE, currentItems.length);
         for (; idx < end; idx++) {
-          frag.appendChild(makeAnchor(items[idx]));
+          frag.appendChild(makeAnchor(currentItems[idx]));
         }
         galleryEl.appendChild(frag);
 
@@ -130,24 +200,45 @@
 
         isAppending = false;
 
-        if (idx >= items.length) {
+        if (idx >= currentItems.length) {
           observer.disconnect();
         }
       }
 
-      appendNextBatch();
-
-      const observer = new IntersectionObserver((entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) appendNextBatch();
+      function setActive(which) {
+        if (which === "all") {
+          allLink.classList.add("active");
+          artLink.classList.remove("active");
+        } else {
+          allLink.classList.remove("active");
+          artLink.classList.add("active");
         }
-      }, {
-        root: null,
-        rootMargin: "1200px 0px",
-        threshold: 0
+      }
+
+      function applyFilter(which) {
+        if (which === "artemis") {
+          currentItems = allItems.filter(it => Array.isArray(it.keywords) && it.keywords.includes(FILTER_KEYWORD));
+          setActive("artemis");
+        } else {
+          currentItems = allItems;
+          setActive("all");
+        }
+        resetGallery();
+      }
+
+      allLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        applyFilter("all");
       });
 
+      artLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        applyFilter("artemis");
+      });
+
+      // Initial load
       observer.observe(loaderEl);
+      appendNextBatch();
     }
 
     main().catch(() => {});
