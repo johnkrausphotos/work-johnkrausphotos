@@ -14,22 +14,18 @@
     #gallery { padding: 12px; }
     #gallery a img { border-radius: 0; }
 
-    #loader {
-      padding: 16px 12px 24px;
-      font-size: 12px;
-      color: #666;
-      text-align: center;
-    }
+    /* keep the sentinel present but visually empty */
+    #loader { height: 1px; }
   </style>
 </head>
 <body>
   <header>
     <div><strong>NASA Photography by John Kraus</strong></div>
-    <div id="status">Loading…</div>
+    <div id="status">Click any image to download in full-resolution with embedded metadata via images.nasa.gov</div>
   </header>
 
   <div id="gallery"></div>
-  <div id="loader">Loading more…</div>
+  <div id="loader"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
@@ -38,29 +34,21 @@
     const BATCH_SIZE = 100;
 
     async function main(){
-      const status = document.getElementById("status");
       const galleryEl = document.getElementById("gallery");
       const loaderEl = document.getElementById("loader");
 
       const res = await fetch("./gallery.json", { cache: "no-store" });
       if (!res.ok) {
-        status.textContent = "gallery.json not found yet. (Wait for the updater to run once.)";
-        loaderEl.textContent = "";
         return;
       }
 
       const items = await res.json();
-      status.textContent = `Displaying ${Math.min(BATCH_SIZE, items.length)} of ${items.length} photos.\nScroll to load more.`;
       if (!items.length) {
-        loaderEl.textContent = "No photos found.";
         return;
       }
 
-      // If the plugin didn't load, we still do infinite append, just without justified layout.
       const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
-      if (!hasJG) {
-        status.textContent += "\nJustified layout failed to load (CDN blocked). Showing basic flow layout.";
-      } else {
+      if (hasJG) {
         jQuery("#gallery").justifiedGallery({
           rowHeight: 260,
           margins: 8,
@@ -84,28 +72,17 @@
         img.alt = it.title || it.nasa_id || "";
         img.src = display;
         img.loading = "lazy";
-        img.onerror = () => { if (img.src !== full) img.src = full; };
+        img.onerror = () => { if (full && img.src !== full) img.src = full; };
 
         a.appendChild(img);
         return a;
       }
 
-      function updateStatus() {
-        status.textContent =
-          `Displaying ${Math.min(idx, items.length)} of ${items.length} photos.\n` +
-          (idx < items.length ? "Scroll to load more." : "End of gallery.");
-      }
-
       function appendNextBatch() {
         if (isAppending) return;
-        if (idx >= items.length) {
-          loaderEl.textContent = "End.";
-          updateStatus();
-          return;
-        }
+        if (idx >= items.length) return;
 
         isAppending = true;
-        loaderEl.textContent = "Loading more…";
 
         const frag = document.createDocumentFragment();
         const end = Math.min(idx + BATCH_SIZE, items.length);
@@ -114,17 +91,15 @@
         }
         galleryEl.appendChild(frag);
 
-        // Update layout
         if (hasJG) {
-          // "norewind" keeps current layout and appends new items.
           jQuery("#gallery").justifiedGallery("norewind");
         }
 
-        updateStatus();
         isAppending = false;
 
+        // Stop observing once everything is appended
         if (idx >= items.length) {
-          loaderEl.textContent = "End.";
+          observer.disconnect();
         }
       }
 
@@ -134,24 +109,18 @@
       // Infinite scroll sentinel
       const observer = new IntersectionObserver((entries) => {
         for (const e of entries) {
-          if (e.isIntersecting) {
-            appendNextBatch();
-          }
+          if (e.isIntersecting) appendNextBatch();
         }
       }, {
         root: null,
-        rootMargin: "1200px 0px", // start loading before you hit the bottom
+        rootMargin: "1200px 0px",
         threshold: 0
       });
 
       observer.observe(loaderEl);
     }
 
-    main().catch(err => {
-      document.getElementById("status").textContent = "Error: " + err;
-      const loaderEl = document.getElementById("loader");
-      if (loaderEl) loaderEl.textContent = "";
-    });
+    main().catch(() => {});
   </script>
 </body>
 </html>
