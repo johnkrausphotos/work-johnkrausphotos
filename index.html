@@ -95,9 +95,7 @@
   <header>
     <div class="wrap">
       <div class="site-title">NASA PHOTOGRAPHY BY JOHN KRAUS</div>
-      <div id="status">
-        Click any image to download in full-resolution with embedded metadata via images.nasa.gov
-      </div>
+      <div id="status">Click any image to download in full-resolution with embedded metadata via images.nasa.gov</div>
     </div>
   </header>
 
@@ -123,14 +121,17 @@
   <script>
     const BATCH_SIZE = 100;
 
-    function normalize(s){ return (s || "").toLowerCase(); }
+    function normalize(s){ return (s || "").toString().toLowerCase(); }
 
     function matchesArtemis2(item){
-      return (item.keywords || []).some(k => normalize(k) === "artemis ii");
+      const kws = Array.isArray(item.keywords) ? item.keywords : [];
+      return kws.some(k => normalize(k) === "artemis ii");
     }
 
     function isJan2026(item){
-      return (item.id_date || "").startsWith("2026:01:");
+      // id_date format: "YYYY:MM:DD HH:MM:SS"
+      const d = (item.id_date || "");
+      return d.startsWith("2026:01:");
     }
 
     function matchesRoadshowJan2026(item){
@@ -140,61 +141,156 @@
     function applyFilter(items, key){
       if (key === "artemis2") return items.filter(matchesArtemis2);
       if (key === "roadshow") return items.filter(matchesRoadshowJan2026);
-      return items;
+      return items; // all
     }
 
     function getFilterFromHash(){
-      const h = location.hash.replace("#","");
-      return ["artemis2","roadshow"].includes(h) ? h : "all";
+      const h = (location.hash || "").replace("#", "");
+      if (h === "artemis2") return "artemis2";
+      if (h === "roadshow") return "roadshow";
+      return "all";
+    }
+
+    function setActiveFilterLink(key){
+      document.querySelectorAll("#filters a").forEach(a => {
+        a.classList.toggle("active", a.dataset.filter === key);
+      });
     }
 
     async function main(){
-      const gallery = document.getElementById("gallery");
-      const loader = document.getElementById("loader");
+      const galleryEl = document.getElementById("gallery");
+      const loaderEl = document.getElementById("loader");
 
       const res = await fetch("./gallery.json", { cache: "no-store" });
       if (!res.ok) return;
 
       const allItems = await res.json();
-      let filter = getFilterFromHash();
-      let items = applyFilter(allItems, filter);
-      let idx = 0;
+      if (!allItems.length) return;
 
-      $("#gallery").justifiedGallery({
-        rowHeight: 260,
-        margins: 8,
-        lastRow: "nojustify"
-      });
+      const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
 
-      function append(){
-        const end = Math.min(idx + BATCH_SIZE, items.length);
-        const frag = document.createDocumentFragment();
-
-        for (; idx < end; idx++) {
-          const it = items[idx];
-          const a = document.createElement("a");
-          a.href = it.full_url;
-          a.target = "_blank";
-          const img = document.createElement("img");
-          img.src = it.large_url;
-          img.loading = "lazy";
-          a.appendChild(img);
-          frag.appendChild(a);
-        }
-
-        gallery.appendChild(frag);
-        $("#gallery").justifiedGallery("norewind");
+      function initJG(){
+        if (!hasJG) return;
+        jQuery("#gallery").justifiedGallery({
+          rowHeight: 260,
+          margins: 8,
+          lastRow: "nojustify"
+        });
       }
 
-      const observer = new IntersectionObserver(e => {
-        if (e[0].isIntersecting && idx < items.length) append();
-      }, { rootMargin: "1200px" });
+      function destroyJG(){
+        if (!hasJG) return;
+        try { jQuery("#gallery").justifiedGallery("destroy"); } catch (_) {}
+      }
 
-      observer.observe(loader);
-      append();
+      function makeAnchor(it) {
+        const full = it.full_url || it.image_url;
+        const display = it.large_url || it.medium_url || it.image_url || it.full_url;
+
+        const a = document.createElement("a");
+        a.href = full;
+        a.target = "_blank";
+        a.rel = "noopener";
+
+        const img = document.createElement("img");
+        img.alt = it.title || it.nasa_id || "";
+        img.src = display;
+        img.loading = "lazy";
+        img.onerror = () => { if (full && img.src !== full) img.src = full; };
+
+        a.appendChild(img);
+        return a;
+      }
+
+      let currentFilter = getFilterFromHash();
+      let items = applyFilter(allItems, currentFilter);
+      let idx = 0;
+      let isAppending = false;
+
+      const observer = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) appendNextBatch();
+        }
+      }, {
+        root: null,
+        rootMargin: "1200px 0px",
+        threshold: 0
+      });
+
+      function appendNextBatch() {
+        if (isAppending) return;
+
+        if (idx >= items.length) {
+          observer.disconnect();
+          return;
+        }
+
+        isAppending = true;
+
+        const frag = document.createDocumentFragment();
+        const end = Math.min(idx + BATCH_SIZE, items.length);
+        for (; idx < end; idx++) {
+          frag.appendChild(makeAnchor(items[idx]));
+        }
+        galleryEl.appendChild(frag);
+
+        if (hasJG) {
+          jQuery("#gallery").justifiedGallery("norewind");
+        }
+
+        isAppending = false;
+
+        if (idx >= items.length) {
+          observer.disconnect();
+        }
+      }
+
+      function resetGalleryForFilter(newFilter){
+        currentFilter = newFilter;
+        setActiveFilterLink(currentFilter);
+
+        items = applyFilter(allItems, currentFilter);
+
+        // clear + reset counters
+        galleryEl.innerHTML = "";
+        idx = 0;
+        isAppending = false;
+
+        // reset layout
+        destroyJG();
+        initJG();
+
+        // restart infinite scroll
+        observer.disconnect();
+        observer.observe(loaderEl);
+
+        appendNextBatch();
+      }
+
+      // Wire clicks so filter actually changes
+      document.querySelectorAll("#filters a").forEach(a => {
+        a.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const f = a.dataset.filter || "all";
+          location.hash = (f === "all") ? "all" : f;
+          resetGalleryForFilter(f);
+        });
+      });
+
+      // Back/forward support
+      window.addEventListener("hashchange", () => {
+        const f = getFilterFromHash();
+        if (f !== currentFilter) resetGalleryForFilter(f);
+      });
+
+      // Initial
+      setActiveFilterLink(currentFilter);
+      initJG();
+      observer.observe(loaderEl);
+      appendNextBatch();
     }
 
-    main();
+    main().catch(() => {});
   </script>
 </body>
 </html>
