@@ -32,29 +32,33 @@
     header { border-bottom: 1px solid #222; }
     header .wrap { padding-top: 16px; padding-bottom: 16px; }
 
-    #status { font-size: 12px; color: #aaa; margin-top: 6px; white-space: pre-wrap; }
-
-    /* simple filter links */
-    #filters {
-      margin-top: 10px;
+    #status {
       font-size: 12px;
       color: #aaa;
+      margin-top: 6px;
+      white-space: pre-wrap;
+    }
+
+    /* Filter row */
+    #filters {
+      margin-top: 12px;
       display: flex;
-      gap: 12px;
+      gap: 18px;
       align-items: center;
       flex-wrap: wrap;
     }
     #filters a {
       color: #aaa;
       text-decoration: none;
-      padding: 2px 0;
-    }
-    #filters a.active {
-      color: #fff;
-      text-decoration: underline;
-      text-underline-offset: 3px;
+      font-weight: 600;
+      padding-bottom: 6px;
+      border-bottom: 2px solid transparent;
     }
     #filters a:hover { color: #fff; }
+    #filters a.active {
+      color: #fff;
+      border-bottom-color: #fff;
+    }
 
     /* Important: the plugin target should be 100% of its wrapper */
     #gallery {
@@ -77,10 +81,11 @@
       <div><strong>NASA Photography by John Kraus</strong></div>
       <div id="status">Click any image to download in full-resolution with embedded metadata via images.nasa.gov</div>
 
-      <div id="filters">
-        <a href="#" id="filter-all" class="active">All</a>
-        <a href="#" id="filter-artemis">Artemis II</a>
-      </div>
+      <nav id="filters" aria-label="Filters">
+        <a href="#all" data-filter="all" class="active">All</a>
+        <a href="#artemis2" data-filter="artemis2">Artemis II</a>
+        <a href="#roadshow" data-filter="roadshow">Jan. ’26 Roadshow</a>
+      </nav>
     </div>
   </header>
 
@@ -96,14 +101,49 @@
 
   <script>
     const BATCH_SIZE = 100;
-    const FILTER_KEYWORD = "Artemis II"; // exact match against it.keywords[]
+
+    // --- filters ---
+    function normalize(s){ return (s || "").toString().toLowerCase(); }
+
+    function matchesArtemis2(item){
+      const kws = Array.isArray(item.keywords) ? item.keywords : [];
+      return kws.some(k => normalize(k) === "artemis ii");
+    }
+
+    function isJan2026(item){
+      // id_date format: "YYYY:MM:DD HH:MM:SS"
+      const d = (item.id_date || "");
+      return d.startsWith("2026:01:");
+    }
+
+    function matchesRoadshowJan2026(item){
+      // Caption contains "roadshow" (case-insensitive) AND captured in Jan 2026
+      const cap = normalize(item.caption);
+      return isJan2026(item) && cap.includes("roadshow");
+    }
+
+    function applyFilter(items, filterKey){
+      if (filterKey === "artemis2") return items.filter(matchesArtemis2);
+      if (filterKey === "roadshow") return items.filter(matchesRoadshowJan2026);
+      return items; // all
+    }
+
+    function setActiveFilterLink(filterKey){
+      document.querySelectorAll("#filters a").forEach(a => {
+        a.classList.toggle("active", a.dataset.filter === filterKey);
+      });
+    }
+
+    function getFilterFromHash(){
+      const h = (location.hash || "").replace("#", "");
+      if (h === "artemis2") return "artemis2";
+      if (h === "roadshow") return "roadshow";
+      return "all";
+    }
 
     async function main(){
       const galleryEl = document.getElementById("gallery");
       const loaderEl = document.getElementById("loader");
-
-      const allLink = document.getElementById("filter-all");
-      const artLink = document.getElementById("filter-artemis");
 
       const res = await fetch("./gallery.json", { cache: "no-store" });
       if (!res.ok) return;
@@ -120,19 +160,11 @@
         });
       }
 
-      let currentItems = allItems;
+      let currentFilter = getFilterFromHash();
+      let items = applyFilter(allItems, currentFilter);
+
       let idx = 0;
       let isAppending = false;
-
-      const observer = new IntersectionObserver((entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) appendNextBatch();
-        }
-      }, {
-        root: null,
-        rootMargin: "1200px 0px",
-        threshold: 0
-      });
 
       function makeAnchor(it) {
         const full = it.full_url || it.image_url;
@@ -153,16 +185,21 @@
         return a;
       }
 
-      function resetGallery() {
+      function resetGalleryForFilter(newFilter){
+        currentFilter = newFilter;
+        setActiveFilterLink(currentFilter);
+
+        // Recompute filtered list
+        items = applyFilter(allItems, currentFilter);
+
+        // Clear DOM
+        galleryEl.innerHTML = "";
         idx = 0;
         isAppending = false;
 
-        // clear DOM
-        galleryEl.innerHTML = "";
-
-        // reset justified gallery layout
+        // Reset / re-init layout
         if (hasJG) {
-          try { jQuery("#gallery").justifiedGallery("destroy"); } catch (_) {}
+          jQuery("#gallery").justifiedGallery("destroy");
           jQuery("#gallery").justifiedGallery({
             rowHeight: 260,
             margins: 8,
@@ -170,17 +207,16 @@
           });
         }
 
-        // restart observer
+        // Restart infinite scroll
         observer.disconnect();
         observer.observe(loaderEl);
 
-        // render first batch
         appendNextBatch();
       }
 
       function appendNextBatch() {
         if (isAppending) return;
-        if (idx >= currentItems.length) {
+        if (idx >= items.length) {
           observer.disconnect();
           return;
         }
@@ -188,9 +224,9 @@
         isAppending = true;
 
         const frag = document.createDocumentFragment();
-        const end = Math.min(idx + BATCH_SIZE, currentItems.length);
+        const end = Math.min(idx + BATCH_SIZE, items.length);
         for (; idx < end; idx++) {
-          frag.appendChild(makeAnchor(currentItems[idx]));
+          frag.appendChild(makeAnchor(items[idx]));
         }
         galleryEl.appendChild(frag);
 
@@ -200,43 +236,40 @@
 
         isAppending = false;
 
-        if (idx >= currentItems.length) {
+        if (idx >= items.length) {
           observer.disconnect();
         }
       }
 
-      function setActive(which) {
-        if (which === "all") {
-          allLink.classList.add("active");
-          artLink.classList.remove("active");
-        } else {
-          allLink.classList.remove("active");
-          artLink.classList.add("active");
+      const observer = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) appendNextBatch();
         }
-      }
-
-      function applyFilter(which) {
-        if (which === "artemis") {
-          currentItems = allItems.filter(it => Array.isArray(it.keywords) && it.keywords.includes(FILTER_KEYWORD));
-          setActive("artemis");
-        } else {
-          currentItems = allItems;
-          setActive("all");
-        }
-        resetGallery();
-      }
-
-      allLink.addEventListener("click", (e) => {
-        e.preventDefault();
-        applyFilter("all");
+      }, {
+        root: null,
+        rootMargin: "1200px 0px",
+        threshold: 0
       });
 
-      artLink.addEventListener("click", (e) => {
-        e.preventDefault();
-        applyFilter("artemis");
+      // Filter link clicks
+      document.querySelectorAll("#filters a").forEach(a => {
+        a.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const f = a.dataset.filter || "all";
+          // update hash so back/forward works
+          location.hash = (f === "all") ? "all" : f;
+          resetGalleryForFilter(f);
+        });
       });
 
-      // Initial load
+      // React to manual hash change / back button
+      window.addEventListener("hashchange", () => {
+        const f = getFilterFromHash();
+        if (f !== currentFilter) resetGalleryForFilter(f);
+      });
+
+      // Initial render
+      setActiveFilterLink(currentFilter);
       observer.observe(loaderEl);
       appendNextBatch();
     }
