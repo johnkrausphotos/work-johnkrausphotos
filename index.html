@@ -39,18 +39,23 @@
       white-space: pre-wrap;
     }
 
-    /* Filter row */
+    /* Filter row (moved OUTSIDE header; defaults back to normal body typography) */
+    #filters-wrap { border-bottom: 1px solid #222; }
+    #filters-wrap .wrap { padding-top: 10px; padding-bottom: 10px; }
+
     #filters {
-      margin-top: 12px;
       display: flex;
       gap: 18px;
       align-items: center;
       flex-wrap: wrap;
+      margin: 0;
     }
     #filters a {
       color: #aaa;
       text-decoration: none;
-      font-weight: 600;
+      font-weight: 400;          /* revert: normal weight */
+      font-size: 12px;           /* revert: small */
+      letter-spacing: 0;         /* revert */
       padding-bottom: 6px;
       border-bottom: 2px solid transparent;
     }
@@ -80,14 +85,19 @@
     <div class="wrap">
       <div><strong>NASA Photography by John Kraus</strong></div>
       <div id="status">Click any image to download in full-resolution with embedded metadata via images.nasa.gov</div>
+    </div>
+  </header>
 
+  <!-- Filters moved OUTSIDE the header to restore original small/normal look -->
+  <div id="filters-wrap">
+    <div class="wrap">
       <nav id="filters" aria-label="Filters">
         <a href="#all" data-filter="all" class="active">All</a>
         <a href="#artemis2" data-filter="artemis2">Artemis II</a>
         <a href="#roadshow" data-filter="roadshow">Jan. ’26 Roadshow</a>
       </nav>
     </div>
-  </header>
+  </div>
 
   <!-- Wrap centers; #gallery is the plugin target -->
   <div class="wrap">
