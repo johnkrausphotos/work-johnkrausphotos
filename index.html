@@ -5,15 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NASA Gallery</title>
 
-  <!-- Justified rows (Flickr-style) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justifiedgallery@3.8.1/dist/css/justifiedGallery.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css">
 
   <style>
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
     header { padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
-    #status { font-size:12px;color:#666;margin-top:6px; }
+    #status { font-size:12px;color:#666;margin-top:6px; white-space: pre-wrap; }
     #gallery { padding: 12px; }
-    /* Rounded corners */
     #gallery a img { border-radius: 10px; }
   </style>
 </head>
@@ -25,8 +23,10 @@
 
   <div id="gallery"></div>
 
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/justifiedgallery@3.8.1/dist/js/jquery.justifiedGallery.min.js"></script>
+  <!-- Load jQuery first -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <!-- Then load Justified Gallery plugin -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
 
   <script>
     async function main(){
@@ -42,7 +42,6 @@
       const items = await res.json();
       status.textContent = `Loaded ${items.length} items.`;
 
-      // Build anchors + images
       const frag = document.createDocumentFragment();
       for (const it of items) {
         const full = it.full_url || it.image_url;
@@ -65,9 +64,16 @@
       }
       gallery.appendChild(frag);
 
+      // If the plugin didn't load, show a clear message and stop.
+      if (!window.jQuery || !jQuery.fn || typeof jQuery.fn.justifiedGallery !== "function") {
+        status.textContent += "\nJustified layout failed to load (CDN blocked or script failed). Showing basic grid instead.";
+        // Basic fallback: keep images as-is; browser will just flow them.
+        return;
+      }
+
       // Apply Flickr-style justified rows
-      $("#gallery").justifiedGallery({
-        rowHeight: 260,     // tweak to taste
+      jQuery("#gallery").justifiedGallery({
+        rowHeight: 260,
         margins: 8,
         lastRow: "nojustify"
       });
