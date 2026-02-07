@@ -1,18 +1,20 @@
 import json
 import time
 import requests
+import xml.etree.ElementTree as ET
 
 QUERY = "john kraus"
 YEAR_START = 2025
 YEAR_END = 2100
 PAGES_TO_FETCH = 10
-REQUEST_DELAY_S = 0.15  # slightly more polite since we'll do 1 CDN range-request per image
+REQUEST_DELAY_S = 0.15  # polite cadence
 
 SEARCH_URL = "https://images-api.nasa.gov/search"
 ASSETS_BASE = "https://images-assets.nasa.gov/image"
 
-# Fetch just the beginning of the JPEG; EXIF lives in the header region.
+# Fetch just the beginning of the JPEG; EXIF + XMP are typically here.
 RANGE_BYTES = 262144  # 256 KiB
+
 
 def fetch_search_page(session: requests.Session, page: int):
     params = {
@@ -26,76 +28,96 @@ def fetch_search_page(session: requests.Session, page: int):
     r.raise_for_status()
     return r.json().get("collection", {}).get("items", [])
 
+
 def make_full_url(nasa_id: str) -> str:
     return f"{ASSETS_BASE}/{nasa_id}/{nasa_id}~orig.jpg"
+
 
 def make_large_url(nasa_id: str) -> str:
     return f"{ASSETS_BASE}/{nasa_id}/{nasa_id}~large.jpg"
 
-# --- Minimal EXIF parser to extract DateTimeOriginal (tag 0x9003) from APP1 Exif ---
-def _u16(b, off, endian):
-    return int.from_bytes(b[off:off+2], endian)
 
-def _u32(b, off, endian):
-    return int.from_bytes(b[off:off+4], endian)
+# -----------------------------
+# Minimal EXIF parser (DateTimeOriginal 0x9003 from APP1 Exif)
+# -----------------------------
+def _u16(b: bytes, off: int, endian: str) -> int:
+    return int.from_bytes(b[off:off + 2], endian)
+
+
+def _u32(b: bytes, off: int, endian: str) -> int:
+    return int.from_bytes(b[off:off + 4], endian)
+
 
 def _find_exif_app1_segment(jpg: bytes) -> bytes | None:
     # JPEG segments start after SOI 0xFFD8; look for APP1 0xFFE1 with "Exif\0\0"
     if len(jpg) < 4 or jpg[0:2] != b"\xFF\xD8":
         return None
+
     i = 2
     n = len(jpg)
     while i + 4 <= n:
         if jpg[i] != 0xFF:
             i += 1
             continue
-        marker = jpg[i+1]
+
+        marker = jpg[i + 1]
         i += 2
+
         # Standalone markers (no length)
         if marker in (0xD9, 0xDA):  # EOI, SOS
             break
+
         if i + 2 > n:
             break
-        seg_len = int.from_bytes(jpg[i:i+2], "big")
+
+        seg_len = int.from_bytes(jpg[i:i + 2], "big")
         if seg_len < 2:
             break
+
         seg_start = i + 2
         seg_end = seg_start + (seg_len - 2)
         if seg_end > n:
             break
+
         if marker == 0xE1 and (seg_end - seg_start) >= 6:
-            if jpg[seg_start:seg_start+6] == b"Exif\x00\x00":
-                return jpg[seg_start+6:seg_end]  # TIFF header starts here
+            if jpg[seg_start:seg_start + 6] == b"Exif\x00\x00":
+                return jpg[seg_start + 6:seg_end]  # TIFF header starts here
+
         i = seg_end
+
     return None
+
 
 def _extract_datetimeoriginal_from_tiff(tiff: bytes) -> str | None:
     # TIFF header: endian(2) + 0x002A + IFD0 offset (4)
     if len(tiff) < 8:
         return None
+
     endian = "little" if tiff[0:2] == b"II" else "big" if tiff[0:2] == b"MM" else None
     if endian is None:
         return None
+
     if _u16(tiff, 2, endian) != 0x2A:
         return None
+
     ifd0_off = _u32(tiff, 4, endian)
     if ifd0_off >= len(tiff):
         return None
 
-    def read_ifd(ifd_off):
+    def read_ifd(ifd_off: int):
         if ifd_off + 2 > len(tiff):
             return []
         count = _u16(tiff, ifd_off, endian)
         entries = []
         base = ifd_off + 2
         for k in range(count):
-            off = base + 12*k
+            off = base + 12 * k
             if off + 12 > len(tiff):
                 break
             tag = _u16(tiff, off, endian)
-            typ = _u16(tiff, off+2, endian)
-            cnt = _u32(tiff, off+4, endian)
-            val_off = tiff[off+8:off+12]
+            typ = _u16(tiff, off + 2, endian)
+            cnt = _u32(tiff, off + 4, endian)
+            val_off = tiff[off + 8:off + 12]
             entries.append((tag, typ, cnt, val_off))
         return entries
 
@@ -105,6 +127,7 @@ def _extract_datetimeoriginal_from_tiff(tiff: bytes) -> str | None:
         if tag == 0x8769:
             exif_ifd_ptr = int.from_bytes(val_off, endian)
             break
+
     if exif_ifd_ptr is None or exif_ifd_ptr >= len(tiff):
         return None
 
@@ -118,25 +141,124 @@ def _extract_datetimeoriginal_from_tiff(tiff: bytes) -> str | None:
                 off = int.from_bytes(val_off, endian)
                 if off + byte_count > len(tiff):
                     return None
-                raw = tiff[off:off+byte_count]
+                raw = tiff[off:off + byte_count]
             try:
                 s = raw.split(b"\x00", 1)[0].decode("ascii", errors="strict").strip()
                 return s if s else None
             except Exception:
                 return None
+
     return None
 
-def fetch_datetimeoriginal(session: requests.Session, full_url: str) -> str | None:
-    headers = {"Range": f"bytes=0-{RANGE_BYTES-1}"}
+
+# -----------------------------
+# XMP keyword extraction (dc:subject, plus lr:hierarchicalSubject if present)
+# -----------------------------
+def _find_xmp_packet(jpg: bytes) -> bytes | None:
+    # Common markers:
+    # - '<x:xmpmeta' ... '</x:xmpmeta>'
+    # - sometimes packed as "http://ns.adobe.com/xap/1.0/\x00" then XML
+    start = jpg.find(b"<x:xmpmeta")
+    if start != -1:
+        end = jpg.find(b"</x:xmpmeta>", start)
+        if end != -1:
+            end += len(b"</x:xmpmeta>")
+            return jpg[start:end]
+
+    # Try Adobe XMP header
+    sig = b"http://ns.adobe.com/xap/1.0/\x00"
+    s2 = jpg.find(sig)
+    if s2 != -1:
+        # XML usually starts shortly after this signature
+        tail = jpg[s2 + len(sig):]
+        s3 = tail.find(b"<x:xmpmeta")
+        if s3 != -1:
+            start = s2 + len(sig) + s3
+            end = jpg.find(b"</x:xmpmeta>", start)
+            if end != -1:
+                end += len(b"</x:xmpmeta>")
+                return jpg[start:end]
+
+    return None
+
+
+def _localname(tag: str) -> str:
+    return tag.split("}", 1)[1] if "}" in tag else tag
+
+
+def _extract_keywords_from_xmp(xmp: bytes) -> list[str]:
+    # Be tolerant to junk before/after XML
+    try:
+        xmp_str = xmp.decode("utf-8", errors="ignore")
+        xmp_str = xmp_str.strip("\x00 \t\r\n")
+        root = ET.fromstring(xmp_str)
+    except Exception:
+        return []
+
+    kws: list[str] = []
+
+    # 1) dc:subject -> rdf:Bag -> rdf:li
+    # We'll search by localnames to avoid namespace headaches.
+    for el in root.iter():
+        if _localname(el.tag) == "subject":
+            # Expect Bag/Li under subject
+            for li in el.iter():
+                if _localname(li.tag) == "li" and li.text:
+                    t = li.text.strip()
+                    if t:
+                        kws.append(t)
+
+    # 2) Lightroom hierarchicalSubject (optional): values like "Program|Artemis II"
+    # Finder often shows the flat keywords, but this is cheap to include.
+    for el in root.iter():
+        if _localname(el.tag) == "hierarchicalSubject":
+            for li in el.iter():
+                if _localname(li.tag) == "li" and li.text:
+                    t = li.text.strip()
+                    if t:
+                        # Flatten "A|B|C" to "C" + also keep full path? We'll keep full token too.
+                        kws.append(t)
+                        if "|" in t:
+                            leaf = t.split("|")[-1].strip()
+                            if leaf:
+                                kws.append(leaf)
+
+    # Deduplicate while preserving order
+    seen = set()
+    out = []
+    for k in kws:
+        if k not in seen:
+            seen.add(k)
+            out.append(k)
+    return out
+
+
+# -----------------------------
+# One range fetch -> parse EXIF + XMP
+# -----------------------------
+def fetch_header_bytes(session: requests.Session, full_url: str) -> bytes | None:
+    headers = {"Range": f"bytes=0-{RANGE_BYTES - 1}"}
     r = session.get(full_url, headers=headers, timeout=30)
-    # Some servers might ignore Range and return 200 full content; still works.
     if r.status_code not in (200, 206):
         return None
-    jpg = r.content
-    tiff = _find_exif_app1_segment(jpg)
-    if not tiff:
-        return None
-    return _extract_datetimeoriginal_from_tiff(tiff)
+    return r.content
+
+
+def parse_datetime_and_keywords(jpg_head: bytes) -> tuple[str | None, list[str]]:
+    # EXIF datetime
+    dto = None
+    tiff = _find_exif_app1_segment(jpg_head)
+    if tiff:
+        dto = _extract_datetimeoriginal_from_tiff(tiff)
+
+    # XMP keywords
+    keywords: list[str] = []
+    xmp = _find_xmp_packet(jpg_head)
+    if xmp:
+        keywords = _extract_keywords_from_xmp(xmp)
+
+    return dto, keywords
+
 
 def main():
     session = requests.Session()
@@ -165,7 +287,11 @@ def main():
         full_url = make_full_url(nasa_id)
         large_url = make_large_url(nasa_id)
 
-        dto = fetch_datetimeoriginal(session, full_url)
+        head = fetch_header_bytes(session, full_url)
+        if not head:
+            continue
+
+        dto, keywords = parse_datetime_and_keywords(head)
         if not dto:
             # You said DateTimeOriginal will always be preserved.
             # If this ever happens, skip to avoid incorrect ordering.
@@ -174,7 +300,8 @@ def main():
         out.append({
             "nasa_id": nasa_id,
             "title": r["title"],
-            "id_date": dto,          # now equals EXIF DateTimeOriginal (e.g. "2026:01:09 14:32:10")
+            "id_date": dto,      # "YYYY:MM:DD HH:MM:SS"
+            "keywords": keywords,  # list[str]
             "large_url": large_url,
             "full_url": full_url,
         })
