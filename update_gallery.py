@@ -6,7 +6,7 @@ QUERY = "john kraus"
 YEAR_START = 2025
 YEAR_END = 2100
 PAGES_TO_FETCH = 10        # increase later if needed
-REQUEST_DELAY_S = 0.1     # be polite to NASA API
+REQUEST_DELAY_S = 0.1      # be polite to NASA API
 
 SEARCH_URL = "https://images-api.nasa.gov/search"
 ASSET_URL = "https://images-api.nasa.gov/asset/"
@@ -47,6 +47,20 @@ def pick_original_jpg(urls):
             return u
     return jpgs[0] if jpgs else (urls[0] if urls else None)
 
+def pick_medium_jpg(urls):
+    # Prefer ~large.jpg if present, else ~medium.jpg, else ~small.jpg, else any JPG
+    for u in urls:
+        if "~large.jpg" in u.lower():
+            return u
+    for u in urls:
+        if "~medium.jpg" in u.lower():
+            return u
+    for u in urls:
+        if "~small.jpg" in u.lower():
+            return u
+    jpgs = [u for u in urls if u.lower().endswith((".jpg", ".jpeg"))]
+    return jpgs[0] if jpgs else (urls[0] if urls else None)
+
 def main():
     items = []
     for page in range(1, PAGES_TO_FETCH + 1):
@@ -71,14 +85,19 @@ def main():
     for r in records:
         time.sleep(REQUEST_DELAY_S)
         urls = fetch_asset_urls(r["nasa_id"])
-        img = pick_original_jpg(urls)
-        if not img:
+
+        full = pick_original_jpg(urls)
+        medium = pick_medium_jpg(urls)
+
+        if not full or not medium:
             continue
+
         out.append({
             "nasa_id": r["nasa_id"],
             "title": r["title"],
             "id_date": r["id_date"],
-            "image_url": img,
+            "medium_url": medium,
+            "full_url": full,
         })
 
     with open("gallery.json", "w") as f:
