@@ -35,21 +35,22 @@
         status.textContent = "gallery.json not found yet. (Wait for the updater to run once.)";
         return;
       }
-      const items = await res.json();
 
+      const items = await res.json();
       status.textContent = `Loaded ${items.length} items.`;
 
       for (const it of items) {
         const div = document.createElement("div");
         div.className = "item";
+
         const a = document.createElement("a");
-        a.href = it.image_url;
+        a.href = it.full_url;          // full-res on click
         a.target = "_blank";
         a.rel = "noopener";
 
         const img = document.createElement("img");
         img.loading = "lazy";
-        img.src = it.image_url;
+        img.src = it.medium_url;       // medium-size for grid
         img.alt = it.title || it.nasa_id;
 
         a.appendChild(img);
@@ -63,6 +64,7 @@
         grid.appendChild(div);
       }
     }
+
     main().catch(err => {
       document.getElementById("status").textContent = "Error: " + err;
     });
