@@ -13,7 +13,12 @@
 
     :root { --wrap: 2200px; --sidepad: 20px; }
 
-    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #000;
+      color: #fff;
+    }
 
     /* Centering is done on an outer wrapper */
     .wrap {
@@ -24,10 +29,10 @@
       width: 100%;
     }
 
-    header { border-bottom: 1px solid #e5e5e5; }
+    header { border-bottom: 1px solid #222; }
     header .wrap { padding-top: 16px; padding-bottom: 16px; }
 
-    #status { font-size: 12px; color: #666; margin-top: 6px; white-space: pre-wrap; }
+    #status { font-size: 12px; color: #aaa; margin-top: 6px; white-space: pre-wrap; }
 
     /* Important: the plugin target should be 100% of its wrapper */
     #gallery {
@@ -37,6 +42,8 @@
     }
 
     #gallery a img { border-radius: 0; }
+
+    a { color: inherit; }
 
     /* keep the sentinel present but visually empty */
     #loader { height: 1px; }
