@@ -15,7 +15,7 @@
 
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
 
-    /* Centered, consistent "page" width (fixes right/left asymmetry) */
+    /* Centering is done on an outer wrapper */
     .wrap {
       max-width: var(--wrap);
       margin: 0 auto;
@@ -27,9 +27,14 @@
     header { border-bottom: 1px solid #e5e5e5; }
     header .wrap { padding-top: 16px; padding-bottom: 16px; }
 
-    #status { font-size:12px;color:#666;margin-top:6px; white-space: pre-wrap; }
+    #status { font-size: 12px; color: #666; margin-top: 6px; white-space: pre-wrap; }
 
-    #gallery.wrap { padding-top: 12px; padding-bottom: 12px; }
+    /* Important: the plugin target should be 100% of its wrapper */
+    #gallery {
+      width: 100%;
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
 
     #gallery a img { border-radius: 0; }
 
@@ -45,7 +50,11 @@
     </div>
   </header>
 
-  <div id="gallery" class="wrap"></div>
+  <!-- Wrap centers; #gallery is the plugin target -->
+  <div class="wrap">
+    <div id="gallery"></div>
+  </div>
+
   <div id="loader"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
