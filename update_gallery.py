@@ -5,8 +5,8 @@ import requests
 QUERY = "john kraus"
 YEAR_START = 2025
 YEAR_END = 2100
-PAGES_TO_FETCH = 10        # increase later if needed
-REQUEST_DELAY_S = 0.1      # be polite to NASA API
+PAGES_TO_FETCH = 10
+REQUEST_DELAY_S = 0.1
 
 SEARCH_URL = "https://images-api.nasa.gov/search"
 ASSET_URL = "https://images-api.nasa.gov/asset/"
@@ -35,31 +35,19 @@ def fetch_asset_urls(nasa_id: str):
     items = r.json().get("collection", {}).get("items", [])
     return [i.get("href") for i in items if i.get("href")]
 
-def pick_original_jpg(urls):
-    # Prefer ~orig.jpg, otherwise any JPG that isn't a thumb if possible
+def pick_any_jpg(urls):
     for u in urls:
-        if "~orig.jpg" in u.lower():
+        if u.lower().endswith(".jpg"):
             return u
-    jpgs = [u for u in urls if u.lower().endswith((".jpg", ".jpeg"))]
-    for u in jpgs:
-        ul = u.lower()
-        if "~thumb" not in ul and "~small" not in ul and "~medium" not in ul:
-            return u
-    return jpgs[0] if jpgs else (urls[0] if urls else None)
+    return None
 
-def pick_medium_jpg(urls):
-    # Prefer ~large.jpg if present, else ~medium.jpg, else ~small.jpg, else any JPG
-    for u in urls:
-        if "~large.jpg" in u.lower():
-            return u
-    for u in urls:
-        if "~medium.jpg" in u.lower():
-            return u
-    for u in urls:
-        if "~small.jpg" in u.lower():
-            return u
-    jpgs = [u for u in urls if u.lower().endswith((".jpg", ".jpeg"))]
-    return jpgs[0] if jpgs else (urls[0] if urls else None)
+def make_variant(url, variant):
+    # turns ...~orig.jpg or ...jpg into ...~variant.jpg
+    if "~" in url:
+        base = url.split("~")[0]
+    else:
+        base = url.rsplit(".", 1)[0]
+    return f"{base}~{variant}.jpg"
 
 def main():
     items = []
@@ -69,7 +57,7 @@ def main():
     records = []
     for it in items:
         data = (it.get("data") or [{}])[0]
-        nasa_id = data.get("nasa_id", "")
+        nasa_id = data.get("nasa_id")
         if not nasa_id:
             continue
         records.append({
@@ -78,26 +66,26 @@ def main():
             "id_date": extract_id_date(nasa_id),
         })
 
-    # Sort by embedded date, then nasa_id (newest first)
     records.sort(key=lambda r: (r["id_date"], r["nasa_id"]), reverse=True)
 
     out = []
     for r in records:
         time.sleep(REQUEST_DELAY_S)
+
         urls = fetch_asset_urls(r["nasa_id"])
-
-        full = pick_original_jpg(urls)
-        medium = pick_medium_jpg(urls)
-
-        if not full or not medium:
+        any_jpg = pick_any_jpg(urls)
+        if not any_jpg:
             continue
+
+        full_url = make_variant(any_jpg, "orig")
+        large_url = make_variant(any_jpg, "large")
 
         out.append({
             "nasa_id": r["nasa_id"],
             "title": r["title"],
             "id_date": r["id_date"],
-            "medium_url": medium,
-            "full_url": full,
+            "large_url": large_url,
+            "full_url": full_url,
         })
 
     with open("gallery.json", "w") as f:
