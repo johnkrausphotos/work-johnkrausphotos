@@ -8,10 +8,22 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css">
 
   <style>
+    html, body { overflow-x: hidden; }
+    *, *::before, *::after { box-sizing: border-box; }
+
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
     header { padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
+
     #status { font-size:12px;color:#666;margin-top:6px; white-space: pre-wrap; }
-    #gallery { padding: 12px; }
+
+    /* inset container */
+    #gallery {
+      max-width: 95vw;
+      margin: 0 auto;
+      padding: 12px;
+      width: 100%;
+    }
+
     #gallery a img { border-radius: 0; }
 
     /* keep the sentinel present but visually empty */
@@ -38,14 +50,10 @@
       const loaderEl = document.getElementById("loader");
 
       const res = await fetch("./gallery.json", { cache: "no-store" });
-      if (!res.ok) {
-        return;
-      }
+      if (!res.ok) return;
 
       const items = await res.json();
-      if (!items.length) {
-        return;
-      }
+      if (!items.length) return;
 
       const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
       if (hasJG) {
@@ -97,16 +105,13 @@
 
         isAppending = false;
 
-        // Stop observing once everything is appended
         if (idx >= items.length) {
           observer.disconnect();
         }
       }
 
-      // Initial batch
       appendNextBatch();
 
-      // Infinite scroll sentinel
       const observer = new IntersectionObserver((entries) => {
         for (const e of entries) {
           if (e.isIntersecting) appendNextBatch();
