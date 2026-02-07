@@ -12,7 +12,7 @@
     header { padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
     #status { font-size:12px;color:#666;margin-top:6px; white-space: pre-wrap; }
     #gallery { padding: 12px; }
-    #gallery a img { border-radius: 10px; }
+    #gallery a img { border-radius: 0px; }
   </style>
 </head>
 <body>
@@ -52,8 +52,7 @@
         a.href = full;
         a.target = "_blank";
         a.rel = "noopener";
-        a.title = `${it.nasa_id}${it.title ? " — " + it.title : ""}`;
-
+        
         const img = document.createElement("img");
         img.alt = it.title || it.nasa_id;
         img.src = display;
