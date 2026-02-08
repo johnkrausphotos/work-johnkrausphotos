@@ -59,8 +59,9 @@
                 display: inline;
             }
 
-            /* MOBILE ONLY: split + center title */
+            /* MOBILE ONLY: split + center title, stack nav */
             @media (max-width: 520px) {
+
                 .site-title {
                     white-space: normal;
                     line-height: 1.1;
@@ -77,12 +78,22 @@
                     margin-top: 6px;
                 }
 
-                /* Center nav under title on mobile */
+                /* Stack nav items one per line */
                 #filters {
-                    justify-content: center;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 14px;
+                }
+
+                #filters a {
+                    font-size: 15px;
+                    line-height: 1.3;
+                }
+
+                #filters a.home-link {
+                    padding-right: 0;
                 }
             }
-
             #filters-wrap { border-bottom: 1px solid var(--line); }
             #filters-wrap .wrap { padding-top: 16px; padding-bottom: 12px; }
 
