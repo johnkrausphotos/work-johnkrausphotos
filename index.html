@@ -43,6 +43,7 @@
             header { border-bottom: none; }
             header .wrap { padding-top: 26px; padding-bottom: 6px; }
 
+            /* Title (desktop/base) */
             .site-title {
                 font-family: "Open Sans", system-ui, -apple-system, sans-serif;
                 font-weight: 600;
@@ -59,45 +60,6 @@
                 display: inline;
             }
 
-            /* MOBILE ONLY: split + center title */
-            @media (max-width: 520px) {
-
-                .site-title {
-                    font-size: 28px;
-                    letter-spacing: 0.18em;
-                    white-space: normal;
-                    line-height: 1.15;
-                    text-align: center;
-                    margin-left: auto;
-                    margin-right: auto;
-                }
-
-                .site-title .title-line {
-                    display: block;
-                }
-
-                .site-title .title-line-2 {
-                    margin-top: 6px;
-                }
-
-            }
-
-                /* Stack nav items one per line */
-                #filters {
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 14px;
-                }
-
-                #filters a {
-                    font-size: 16px;
-                    line-height: 1.3;
-                }
-
-                #filters a.home-link {
-                    padding-right: 0;
-                }
-            }
             #filters-wrap { border-bottom: 1px solid var(--line); }
             #filters-wrap .wrap { padding-top: 16px; padding-bottom: 12px; }
 
@@ -153,7 +115,6 @@
                 padding-bottom: 18px;
             }
 
-            /* No gutter hacks. Let JG do its thing; we just control margins + container width. */
             #gallery { width: 100%; }
 
             #gallery a img { border-radius: 0; }
@@ -162,6 +123,7 @@
 
             #loader { height: 1px; }
 
+            /* Medium breakpoint */
             @media (max-width: 900px) {
                 :root {
                     --sidepad: 18px;
@@ -169,13 +131,47 @@
                     --rowh: 240px;
                     --gap: 12px;
                 }
-                .site-title { font-size: 30px; letter-spacing: 0.22em; }
-                #filters a { font-size: 16px; }
+
+                .site-title {
+                    font-size: 30px;
+                    letter-spacing: 0.22em;
+                }
             }
 
+            /* MOBILE ONLY: split + center title, and stack nav */
             @media (max-width: 520px) {
-                .site-title { font-size: 32px; letter-spacing: 0.18em; }
-                #filters { gap: 18px; }
+                .site-title {
+                    font-size: 32px;          /* keep at 32 on mobile */
+                    letter-spacing: 0.18em;
+                    white-space: normal;
+                    line-height: 1.15;
+                    text-align: center;
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+
+                .site-title .title-line {
+                    display: block;
+                }
+
+                .site-title .title-line-2 {
+                    margin-top: 6px;
+                }
+
+                #filters {
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 14px;
+                }
+
+                #filters a {
+                    font-size: 16px;          /* mobile-only nav sizing */
+                    line-height: 1.3;
+                }
+
+                #filters a.home-link {
+                    padding-right: 0;
+                }
             }
         </style>
     </head>
