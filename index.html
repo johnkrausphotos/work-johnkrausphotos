@@ -14,7 +14,8 @@
 
     :root {
       --wrap: 2200px;
-      --sidepad: 12px;
+      --sidepad: 12px;          /* header/nav padding */
+      --gallery-sidepad: 8px;   /* gallery edge padding */
 
       --jk-blue: #009cff;
       --line: rgba(255,255,255,0.10);
@@ -40,6 +41,12 @@
       width: 100%;
     }
 
+    /* Gallery wrapper uses its own edge padding */
+    .gallery-wrap {
+      padding-left: var(--gallery-sidepad);
+      padding-right: var(--gallery-sidepad);
+    }
+
     /* Header (SmugMug-ish: big airy title, clean nav line) */
     header { border-bottom: none; }
     header .wrap { padding-top: 26px; padding-bottom: 6px; }
@@ -54,14 +61,6 @@
       margin: 0;
       color: var(--jk-blue);
       white-space: nowrap;
-    }
-
-    /* Status / subhead */
-    #status {
-      font-size: 16px;
-      color: var(--muted);
-      margin-top: 18px;
-      line-height: 1.5;
     }
 
     /* Filters row (separate bar, like a nav strip) */
@@ -130,9 +129,13 @@
 
     /* Responsive tweaks */
     @media (max-width: 900px) {
-      :root { --sidepad: 18px; --rowh: 240px; --gap: 12px; }
+      :root {
+        --sidepad: 18px;
+        --gallery-sidepad: 8px; /* keep gallery edges at 8px */
+        --rowh: 240px;
+        --gap: 12px;
+      }
       .site-title { font-size: 30px; letter-spacing: 0.22em; }
-      #status { font-size: 14px; margin-top: 14px; }
       #filters a { font-size: 13px; }
     }
 
@@ -161,7 +164,7 @@
     </div>
   </div>
 
-  <div class="wrap">
+  <div class="wrap gallery-wrap">
     <div id="gallery"></div>
   </div>
 
