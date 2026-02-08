@@ -1,349 +1,348 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NASA Photography by John Kraus</title>
-
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
-
-  <style>
-    html, body { overflow-x: hidden; }
-    *, *::before, *::after { box-sizing: border-box; }
-
-    :root {
-      --wrap: 2200px;
-      --sidepad: 12px;          /* header/nav padding */
-      --gallery-sidepad: 8px;   /* gallery edge padding */
-
-      --jk-blue: #009cff;
-      --line: rgba(255,255,255,0.10);
-      --muted: rgba(255,255,255,0.62);
-      --muted2: rgba(255,255,255,0.40);
-      --gap: 16px;          /* spacing between images (JG margins) */
-      --rowh: 280px;        /* base row height */
-    }
-
-    body {
-      margin: 0;
-      padding-top: 24px; /* ← headroom */
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #000;
-      color: #fff;
-    }
-
-    .wrap {
-      max-width: var(--wrap);
-      margin: 0 auto;
-      padding-left: var(--sidepad);
-      padding-right: var(--sidepad);
-      width: 100%;
-    }
-
-    /* Gallery wrapper uses its own edge padding */
-    .gallery-wrap {
-        max-width: var(--wrap);
-        margin: 0 auto;
-        width: 100%;
-        padding-left: var(--gallery-sidepad);
-        padding-right: var(--gallery-sidepad);
-    }
-
-    /* Header (SmugMug-ish: big airy title, clean nav line) */
-    header { border-bottom: none; }
-    header .wrap { padding-top: 26px; padding-bottom: 6px; }
-
-    .site-title {
-      font-family: "Open Sans", system-ui, -apple-system, sans-serif;
-      font-weight: 600;          /* Semi-Bold 600 */
-      font-size: 44px;           /* matches SmugMug “M” visually */
-      letter-spacing: 12px;      /* EXACT: SmugMug shows 12px */
-      text-transform: uppercase;
-      line-height: 1.05;
-      margin: 0;
-      color: var(--jk-blue);
-      white-space: nowrap;
-    }
-
-    /* Filters row (separate bar, like a nav strip) */
-    #filters-wrap { border-bottom: 1px solid var(--line); }
-    #filters-wrap .wrap { padding-top: 16px; padding-bottom: 12px; }
-
-    #filters {
-      display: flex;
-      gap: 32px;                /* SmugMug-ish spacing */
-      align-items: center;
-      flex-wrap: wrap;
-      margin: 0;
-    }
-
-    #filters a {
-      font-family: "Open Sans", Helvetica, Arial, sans-serif;
-      font-weight: 400;
-      font-size: 16px;
-      line-height: 1.23;
-      letter-spacing: 0;
-      text-transform: uppercase;
-
-      color: #ececec;
-      text-decoration: none;
-
-      padding: 0;
-      border-bottom: 2px solid transparent;
-    }
-
-    #filters a:hover {
-      color: #ffffff;
-    }
-
-    #filters a.active {
-      color: #ffffff;
-      border-bottom-color: #ffffff;
-    }
-
-    /* Make the “Return…” link look slightly different (still nav-like) */
-    #filters a.home-link {
-      text-transform: none;
-      letter-spacing: 0;
-      font-weight: 400;
-      color: rgba(236,236,236,0.75);
-      padding-right: 24px;
-      border-bottom-color: transparent;
-    }
-
-    #filters a.home-link:hover {
-      color: #ffffff;
-    }
-    /* Gallery */
-    #gallery {
-      width: 100%;
-      padding-top: 18px;
-      padding-bottom: 18px;
-
-      /* Cancel JustifiedGallery outer gutter */
-      margin-left: calc(var(--gap) * -1);
-      margin-right: calc(var(--gap) * -1);
-    }
-    
-    #gallery a img { border-radius: 0; }
-
-    a { color: inherit; }
-
-    /* Infinite scroll sentinel */
-    #loader { height: 1px; }
-
-    /* Responsive tweaks */
-    @media (max-width: 900px) {
-      :root {
-        --sidepad: 18px;
-        --gallery-sidepad: 8px; /* keep gallery edges at 8px */
-        --rowh: 240px;
-        --gap: 12px;
-      }
-      .site-title { font-size: 30px; letter-spacing: 0.22em; }
-      #filters a { font-size: 13px; }
-    }
-
-    @media (max-width: 520px) {
-      .site-title { font-size: 22px; letter-spacing: 0.18em; }
-      #filters { gap: 18px; }
-    }
-  </style>
-</head>
-
-<body>
-  <header>
-    <div class="wrap">
-      <div class="site-title">NASA PHOTOGRAPHY BY JOHN KRAUS</div>
-    </div>
-  </header>
-
-  <div id="filters-wrap">
-    <div class="wrap">
-      <nav id="filters" aria-label="Filters">
-        <a href="https://www.johnkrausphotos.com" class="home-link">← Return to site homepage</a>
-        <a href="#all" data-filter="all" class="active">All NASA images</a>
-        <a href="#artemis2" data-filter="artemis2">Artemis II</a>
-        <a href="#roadshow" data-filter="roadshow">Jan. ’26 Roadshow</a>
-      </nav>
-    </div>
-  </div>
-
-  <div class="gallery-wrap">
-    <div id="gallery"></div>
-  </div>
-
-  <div id="loader"></div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
-
-  <script>
-    const BATCH_SIZE = 100;
-
-    function normalize(s){ return (s || "").toString().toLowerCase(); }
-
-    function matchesArtemis2(item){
-      const kws = Array.isArray(item.keywords) ? item.keywords : [];
-      return kws.some(k => normalize(k) === "artemis ii");
-    }
-
-    function isJan2026(item){
-      const d = (item.id_date || "");
-      return d.startsWith("2026:01:");
-    }
-
-    function matchesRoadshowJan2026(item){
-      return isJan2026(item) && normalize(item.caption).includes("roadshow");
-    }
-
-    function applyFilter(items, key){
-      if (key === "artemis2") return items.filter(matchesArtemis2);
-      if (key === "roadshow") return items.filter(matchesRoadshowJan2026);
-      return items;
-    }
-
-    function getFilterFromHash(){
-      const h = (location.hash || "").replace("#", "");
-      if (h === "artemis2") return "artemis2";
-      if (h === "roadshow") return "roadshow";
-      return "all";
-    }
-
-    function setActiveFilterLink(key){
-      document.querySelectorAll("#filters a").forEach(a => {
-        a.classList.toggle("active", a.dataset.filter === key);
-      });
-    }
-
-    async function main(){
-      const galleryEl = document.getElementById("gallery");
-      const loaderEl = document.getElementById("loader");
-
-      const res = await fetch("./gallery.json", { cache: "no-store" });
-      if (!res.ok) return;
-
-      const allItems = await res.json();
-      if (!allItems.length) return;
-
-      const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
-
-      function cssVarNumber(name, fallback){
-        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-        const n = parseFloat(v);
-        return Number.isFinite(n) ? n : fallback;
-      }
-
-      function initJG(){
-        if (!hasJG) return;
-        jQuery("#gallery").justifiedGallery({
-          rowHeight: cssVarNumber("--rowh", 280),
-          margins: cssVarNumber("--gap", 16),
-          lastRow: "nojustify"
-        });
-      }
-
-      function destroyJG(){
-        if (!hasJG) return;
-        try { jQuery("#gallery").justifiedGallery("destroy"); } catch (_) {}
-      }
-
-      function makeAnchor(it) {
-        const full = it.full_url || it.image_url;
-        const display = it.large_url || it.medium_url || it.image_url || it.full_url;
-
-        const a = document.createElement("a");
-        a.href = full;
-        a.target = "_blank";
-        a.rel = "noopener";
-
-        const img = document.createElement("img");
-        img.alt = it.title || it.nasa_id || "";
-        img.src = display;
-        img.loading = "lazy";
-        img.onerror = () => { if (full && img.src !== full) img.src = full; };
-
-        a.appendChild(img);
-        return a;
-      }
-
-      let currentFilter = getFilterFromHash();
-      let items = applyFilter(allItems, currentFilter);
-      let idx = 0;
-      let isAppending = false;
-
-      const observer = new IntersectionObserver((entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) appendNextBatch();
-        }
-      }, { root: null, rootMargin: "1200px 0px", threshold: 0 });
-
-      function appendNextBatch() {
-        if (isAppending) return;
-
-        if (idx >= items.length) {
-          observer.disconnect();
-          return;
-        }
-
-        isAppending = true;
-
-        const frag = document.createDocumentFragment();
-        const end = Math.min(idx + BATCH_SIZE, items.length);
-        for (; idx < end; idx++) {
-          frag.appendChild(makeAnchor(items[idx]));
-        }
-        galleryEl.appendChild(frag);
-
-        if (hasJG) jQuery("#gallery").justifiedGallery("norewind");
-
-        isAppending = false;
-
-        if (idx >= items.length) observer.disconnect();
-      }
-
-      function resetGalleryForFilter(newFilter){
-        currentFilter = newFilter;
-        setActiveFilterLink(currentFilter);
-
-        items = applyFilter(allItems, currentFilter);
-
-        galleryEl.innerHTML = "";
-        idx = 0;
-        isAppending = false;
-
-        destroyJG();
-        initJG();
-
-        observer.disconnect();
-        observer.observe(loaderEl);
-
-        appendNextBatch();
-      }
-
-      // Filter clicks (ignore the external homepage link)
-      document.querySelectorAll("#filters a[data-filter]").forEach(a => {
-        a.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          const f = a.dataset.filter || "all";
-          location.hash = (f === "all") ? "all" : f;
-          resetGalleryForFilter(f);
-        });
-      });
-
-      window.addEventListener("hashchange", () => {
-        const f = getFilterFromHash();
-        if (f !== currentFilter) resetGalleryForFilter(f);
-      });
-
-      setActiveFilterLink(currentFilter);
-      initJG();
-      observer.observe(loaderEl);
-      appendNextBatch();
-    }
-
-    main().catch(() => {});
-  </script>
-</body>
-</html>
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>NASA Photography by John Kraus</title>
+
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/css/justifiedGallery.min.css">
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+
+        <style>
+            html, body { overflow-x: hidden; }
+            *, *::before, *::after { box-sizing: border-box; }
+
+            :root {
+                --wrap: 2200px;
+                --sidepad: 12px;          /* header/nav padding */
+                --gallery-sidepad: 8px;   /* gallery edge padding */
+
+                --jk-blue: #009cff;
+                --line: rgba(255,255,255,0.10);
+                --muted: rgba(255,255,255,0.62);
+                --muted2: rgba(255,255,255,0.40);
+                --gap: 16px;              /* spacing between images (JG margins) */
+                --rowh: 280px;            /* base row height */
+            }
+
+            body {
+                margin: 0;
+                padding-top: 24px; /* headroom */
+                font-family: system-ui, -apple-system, sans-serif;
+                background: #000;
+                color: #fff;
+            }
+
+            .wrap {
+                max-width: var(--wrap);
+                margin: 0 auto;
+                padding-left: var(--sidepad);
+                padding-right: var(--sidepad);
+                width: 100%;
+            }
+
+            /* Gallery wrapper uses its own edge padding */
+            .gallery-wrap {
+                max-width: var(--wrap);
+                margin: 0 auto;
+                width: 100%;
+                padding-left: var(--gallery-sidepad);
+                padding-right: var(--gallery-sidepad);
+            }
+
+            /* Header */
+            header { border-bottom: none; }
+            header .wrap { padding-top: 26px; padding-bottom: 6px; }
+
+            .site-title {
+                font-family: "Open Sans", system-ui, -apple-system, sans-serif;
+                font-weight: 600;          /* Semi-Bold 600 */
+                font-size: 44px;
+                letter-spacing: 12px;
+                text-transform: uppercase;
+                line-height: 1.05;
+                margin: 0;
+                color: var(--jk-blue);
+                white-space: nowrap;
+            }
+
+            /* Filters row */
+            #filters-wrap { border-bottom: 1px solid var(--line); }
+            #filters-wrap .wrap { padding-top: 16px; padding-bottom: 12px; }
+
+            #filters {
+                display: flex;
+                gap: 32px;
+                align-items: center;
+                flex-wrap: wrap;
+                margin: 0;
+            }
+
+            #filters a {
+                font-family: "Open Sans", Helvetica, Arial, sans-serif;
+                font-weight: 400;
+                font-size: 16px;
+                line-height: 1.23;
+                letter-spacing: 0;
+                text-transform: uppercase;
+
+                color: #ececec;
+                text-decoration: none;
+
+                padding: 0;
+                border-bottom: 2px solid transparent;
+            }
+
+            #filters a:hover {
+                color: #ffffff;
+            }
+
+            #filters a.active {
+                color: #ffffff;
+                border-bottom-color: #ffffff;
+            }
+
+            #filters a.home-link {
+                text-transform: none;
+                letter-spacing: 0;
+                font-weight: 400;
+                color: rgba(236,236,236,0.75);
+                padding-right: 24px;
+                border-bottom-color: transparent;
+            }
+
+            #filters a.home-link:hover {
+                color: #ffffff;
+            }
+
+            /* Gallery */
+            #gallery {
+                width: 100%;
+                padding-top: 18px;
+                padding-bottom: 18px;
+
+                /* Cancel JustifiedGallery outer gutter correctly (half-gap each side) */
+                margin-left: calc(var(--gap) * -0.5);
+                margin-right: calc(var(--gap) * -0.5);
+            }
+
+            #gallery a img { border-radius: 0; }
+
+            a { color: inherit; }
+
+            /* Infinite scroll sentinel */
+            #loader { height: 1px; }
+
+            /* Responsive tweaks */
+            @media (max-width: 900px) {
+                :root {
+                    --sidepad: 18px;
+                    --gallery-sidepad: 8px; /* keep gallery edges at 8px */
+                    --rowh: 240px;
+                    --gap: 12px;
+                }
+                .site-title { font-size: 30px; letter-spacing: 0.22em; }
+                #filters a { font-size: 13px; }
+            }
+
+            @media (max-width: 520px) {
+                .site-title { font-size: 22px; letter-spacing: 0.18em; }
+                #filters { gap: 18px; }
+            }
+        </style>
+    </head>
+
+    <body>
+        <header>
+            <div class="wrap">
+                <div class="site-title">NASA PHOTOGRAPHY BY JOHN KRAUS</div>
+            </div>
+        </header>
+
+        <div id="filters-wrap">
+            <div class="wrap">
+                <nav id="filters" aria-label="Filters">
+                    <a href="https://www.johnkrausphotos.com" class="home-link">← Return to site homepage</a>
+                    <a href="#all" data-filter="all" class="active">All NASA images</a>
+                    <a href="#artemis2" data-filter="artemis2">Artemis II</a>
+                    <a href="#roadshow" data-filter="roadshow">Jan. ’26 Roadshow</a>
+                </nav>
+            </div>
+        </div>
+
+        <div class="gallery-wrap">
+            <div id="gallery"></div>
+        </div>
+
+        <div id="loader"></div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+        <script>
+            const BATCH_SIZE = 100;
+
+            function normalize(s){ return (s || "").toString().toLowerCase(); }
+
+            function matchesArtemis2(item){
+                const kws = Array.isArray(item.keywords) ? item.keywords : [];
+                return kws.some(k => normalize(k) === "artemis ii");
+            }
+
+            function isJan2026(item){
+                const d = (item.id_date || "");
+                return d.startsWith("2026:01:");
+            }
+
+            function matchesRoadshowJan2026(item){
+                return isJan2026(item) && normalize(item.caption).includes("roadshow");
+            }
+
+            function applyFilter(items, key){
+                if (key === "artemis2") return items.filter(matchesArtemis2);
+                if (key === "roadshow") return items.filter(matchesRoadshowJan2026);
+                return items;
+            }
+
+            function getFilterFromHash(){
+                const h = (location.hash || "").replace("#", "");
+                if (h === "artemis2") return "artemis2";
+                if (h === "roadshow") return "roadshow";
+                return "all";
+            }
+
+            function setActiveFilterLink(key){
+                document.querySelectorAll("#filters a").forEach(a => {
+                    a.classList.toggle("active", a.dataset.filter === key);
+                });
+            }
+
+            async function main(){
+                const galleryEl = document.getElementById("gallery");
+                const loaderEl = document.getElementById("loader");
+
+                const res = await fetch("./gallery.json", { cache: "no-store" });
+                if (!res.ok) return;
+
+                const allItems = await res.json();
+                if (!allItems.length) return;
+
+                const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
+
+                function cssVarNumber(name, fallback){
+                    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                    const n = parseFloat(v);
+                    return Number.isFinite(n) ? n : fallback;
+                }
+
+                function initJG(){
+                    if (!hasJG) return;
+                    jQuery("#gallery").justifiedGallery({
+                        rowHeight: cssVarNumber("--rowh", 280),
+                        margins: cssVarNumber("--gap", 16),
+                        lastRow: "nojustify"
+                    });
+                }
+
+                function destroyJG(){
+                    if (!hasJG) return;
+                    try { jQuery("#gallery").justifiedGallery("destroy"); } catch (_) {}
+                }
+
+                function makeAnchor(it) {
+                    const full = it.full_url || it.image_url;
+                    const display = it.large_url || it.medium_url || it.image_url || it.full_url;
+
+                    const a = document.createElement("a");
+                    a.href = full;
+                    a.target = "_blank";
+                    a.rel = "noopener";
+
+                    const img = document.createElement("img");
+                    img.alt = it.title || it.nasa_id || "";
+                    img.src = display;
+                    img.loading = "lazy";
+                    img.onerror = () => { if (full && img.src !== full) img.src = full; };
+
+                    a.appendChild(img);
+                    return a;
+                }
+
+                let currentFilter = getFilterFromHash();
+                let items = applyFilter(allItems, currentFilter);
+                let idx = 0;
+                let isAppending = false;
+
+                const observer = new IntersectionObserver((entries) => {
+                    for (const e of entries) {
+                        if (e.isIntersecting) appendNextBatch();
+                    }
+                }, { root: null, rootMargin: "1200px 0px", threshold: 0 });
+
+                function appendNextBatch() {
+                    if (isAppending) return;
+
+                    if (idx >= items.length) {
+                        observer.disconnect();
+                        return;
+                    }
+
+                    isAppending = true;
+
+                    const frag = document.createDocumentFragment();
+                    const end = Math.min(idx + BATCH_SIZE, items.length);
+                    for (; idx < end; idx++) {
+                        frag.appendChild(makeAnchor(items[idx]));
+                    }
+                    galleryEl.appendChild(frag);
+
+                    if (hasJG) jQuery("#gallery").justifiedGallery("norewind");
+
+                    isAppending = false;
+
+                    if (idx >= items.length) observer.disconnect();
+                }
+
+                function resetGalleryForFilter(newFilter){
+                    currentFilter = newFilter;
+                    setActiveFilterLink(currentFilter);
+
+                    items = applyFilter(allItems, currentFilter);
+
+                    galleryEl.innerHTML = "";
+                    idx = 0;
+                    isAppending = false;
+
+                    destroyJG();
+                    initJG();
+
+                    observer.disconnect();
+                    observer.observe(loaderEl);
+
+                    appendNextBatch();
+                }
+
+                document.querySelectorAll("#filters a[data-filter]").forEach(a => {
+                    a.addEventListener("click", (ev) => {
+                        ev.preventDefault();
+                        const f = a.dataset.filter || "all";
+                        location.hash = (f === "all") ? "all" : f;
+                        resetGalleryForFilter(f);
+                    });
+                });
+
+                window.addEventListener("hashchange", () => {
+                    const f = getFilterFromHash();
+                    if (f !== currentFilter) resetGalleryForFilter(f);
+                });
+
+                setActiveFilterLink(currentFilter);
+                initJG();
+                observer.observe(loaderEl);
+                appendNextBatch();
+            }
+
+            main().catch(() => {});
+        </script>
+    </body>
+    </html>
