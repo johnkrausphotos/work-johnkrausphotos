@@ -14,49 +14,38 @@
 
             :root {
                 --wrap: 2200px;
-                --sidepad: 12px;          /* header/nav padding */
-                --gallery-sidepad: 8px;   /* gallery edge padding */
+                --sidepad: 12px;        /* header/nav padding */
+                --gallery-pad: 8px;     /* desired gallery edge padding */
+                --gap: 16px;            /* spacing between images */
+                --rowh: 280px;
 
                 --jk-blue: #009cff;
                 --line: rgba(255,255,255,0.10);
-                --muted: rgba(255,255,255,0.62);
-                --muted2: rgba(255,255,255,0.40);
-                --gap: 16px;              /* spacing between images (JG margins) */
-                --rowh: 280px;            /* base row height */
             }
 
             body {
                 margin: 0;
-                padding-top: 24px; /* headroom */
+                padding-top: 24px;
                 font-family: system-ui, -apple-system, sans-serif;
                 background: #000;
                 color: #fff;
             }
 
+            /* Header/nav container */
             .wrap {
                 max-width: var(--wrap);
                 margin: 0 auto;
+                width: 100%;
                 padding-left: var(--sidepad);
                 padding-right: var(--sidepad);
-                width: 100%;
             }
 
-            /* Gallery wrapper uses its own edge padding */
-            .gallery-wrap {
-                max-width: var(--wrap);
-                margin: 0 auto;
-                width: 100%;
-                padding-left: var(--gallery-sidepad);
-                padding-right: var(--gallery-sidepad);
-            }
-
-            /* Header */
             header { border-bottom: none; }
             header .wrap { padding-top: 26px; padding-bottom: 6px; }
 
             .site-title {
                 font-family: "Open Sans", system-ui, -apple-system, sans-serif;
-                font-weight: 600;          /* Semi-Bold 600 */
+                font-weight: 600;
                 font-size: 44px;
                 letter-spacing: 12px;
                 text-transform: uppercase;
@@ -66,7 +55,6 @@
                 white-space: nowrap;
             }
 
-            /* Filters row */
             #filters-wrap { border-bottom: 1px solid var(--line); }
             #filters-wrap .wrap { padding-top: 16px; padding-bottom: 12px; }
 
@@ -93,9 +81,7 @@
                 border-bottom: 2px solid transparent;
             }
 
-            #filters a:hover {
-                color: #ffffff;
-            }
+            #filters a:hover { color: #ffffff; }
 
             #filters a.active {
                 color: #ffffff;
@@ -111,33 +97,32 @@
                 border-bottom-color: transparent;
             }
 
-            #filters a.home-link:hover {
-                color: #ffffff;
-            }
+            #filters a.home-link:hover { color: #ffffff; }
 
-            /* Gallery */
-            #gallery {
+            /* Gallery container: ONE place controls edge padding */
+            .gallery-wrap {
+                max-width: var(--wrap);
+                margin: 0 auto;
                 width: 100%;
+                padding-left: var(--gallery-pad);
+                padding-right: var(--gallery-pad);
                 padding-top: 18px;
                 padding-bottom: 18px;
-
-                /* Cancel JustifiedGallery outer gutter correctly (half-gap each side) */
-                margin-left: calc(var(--gap) * -0.5);
-                margin-right: calc(var(--gap) * -0.5);
             }
+
+            /* No gutter hacks. Let JG do its thing; we just control margins + container width. */
+            #gallery { width: 100%; }
 
             #gallery a img { border-radius: 0; }
 
             a { color: inherit; }
 
-            /* Infinite scroll sentinel */
             #loader { height: 1px; }
 
-            /* Responsive tweaks */
             @media (max-width: 900px) {
                 :root {
                     --sidepad: 18px;
-                    --gallery-sidepad: 8px; /* keep gallery edges at 8px */
+                    --gallery-pad: 8px;
                     --rowh: 240px;
                     --gap: 12px;
                 }
@@ -281,19 +266,13 @@
 
                 function appendNextBatch() {
                     if (isAppending) return;
-
-                    if (idx >= items.length) {
-                        observer.disconnect();
-                        return;
-                    }
+                    if (idx >= items.length) { observer.disconnect(); return; }
 
                     isAppending = true;
 
                     const frag = document.createDocumentFragment();
                     const end = Math.min(idx + BATCH_SIZE, items.length);
-                    for (; idx < end; idx++) {
-                        frag.appendChild(makeAnchor(items[idx]));
-                    }
+                    for (; idx < end; idx++) frag.appendChild(makeAnchor(items[idx]));
                     galleryEl.appendChild(frag);
 
                     if (hasJG) jQuery("#gallery").justifiedGallery("norewind");
