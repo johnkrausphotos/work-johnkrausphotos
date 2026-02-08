@@ -52,7 +52,27 @@
                 line-height: 1.05;
                 margin: 0;
                 color: var(--jk-blue);
-                white-space: nowrap;
+                white-space: nowrap; /* desktop stays one line */
+            }
+
+            .site-title .title-line {
+                display: inline;
+            }
+
+            /* MOBILE ONLY: split title into two lines */
+            @media (max-width: 520px) {
+                .site-title {
+                    white-space: normal;
+                    line-height: 1.1;
+                }
+
+                .site-title .title-line {
+                    display: block;
+                }
+
+                .site-title .title-line-2 {
+                    margin-top: 6px;
+                }
             }
 
             #filters-wrap { border-bottom: 1px solid var(--line); }
@@ -140,7 +160,10 @@
     <body>
         <header>
             <div class="wrap">
-                <div class="site-title">NASA PHOTOGRAPHY BY JOHN KRAUS</div>
+                <div class="site-title">
+                    <span class="title-line title-line-1">NASA PHOTOGRAPHY</span>
+                    <span class="title-line title-line-2">BY JOHN KRAUS</span>
+                </div>
             </div>
         </header>
 
