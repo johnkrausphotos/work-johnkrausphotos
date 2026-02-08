@@ -115,14 +115,17 @@
     #filters a.home-link:hover {
       color: #ffffff;
     }
-
     /* Gallery */
     #gallery {
       width: 100%;
       padding-top: 18px;
       padding-bottom: 18px;
-    }
 
+      /* Cancel JustifiedGallery outer gutter */
+      margin-left: calc(var(--gap) * -1);
+      margin-right: calc(var(--gap) * -1);
+    }
+    
     #gallery a img { border-radius: 0; }
 
     a { color: inherit; }
