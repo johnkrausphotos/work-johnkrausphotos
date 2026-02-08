@@ -43,8 +43,11 @@
 
     /* Gallery wrapper uses its own edge padding */
     .gallery-wrap {
-      padding-left: var(--gallery-sidepad);
-      padding-right: var(--gallery-sidepad);
+        max-width: var(--wrap);
+        margin: 0 auto;
+        width: 100%;
+        padding-left: var(--gallery-sidepad);
+        padding-right: var(--gallery-sidepad);
     }
 
     /* Header (SmugMug-ish: big airy title, clean nav line) */
@@ -164,7 +167,7 @@
     </div>
   </div>
 
-  <div class="wrap gallery-wrap">
+  <div class="gallery-wrap">
     <div id="gallery"></div>
   </div>
 
