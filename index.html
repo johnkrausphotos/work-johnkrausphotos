@@ -97,9 +97,9 @@
 
         #filters a.home-link:hover { color: #ffffff; }
 
-        /* ===== DROPDOWN FIXED VERSION (no hover gap) ===== */
+        /* ===== DROPDOWN (aligned, hover works, underline only text width, mobile toggle) ===== */
 
-                .nav-dropdown {
+        .nav-dropdown {
             position: relative;
             display: inline-flex;
             align-items: center;
@@ -149,7 +149,7 @@
             min-width: 190px;
             background: #0a0a0a;
             border: 1px solid var(--line);
-            padding: 12px 16px;   /* match visual spacing feel of top nav */
+            padding: 12px 16px;
             z-index: 10;
         }
 
@@ -165,7 +165,7 @@
             line-height: 1.23;
 
             color: rgba(236,236,236,0.9);
-            text-transform: uppercase;  /* match top nav casing */
+            text-transform: uppercase;
             letter-spacing: 0;
         }
 
@@ -181,6 +181,7 @@
         @media (min-width: 521px) {
             .nav-dropdown:hover .nav-dropdown-menu { display: block; }
         }
+
         /* ===== Gallery ===== */
 
         .gallery-wrap {
@@ -248,8 +249,10 @@
                 position: static;
                 min-width: 220px;
                 text-align: center;
-                margin-top: 6px;
+                margin-top: 8px;
             }
+
+            .nav-dropdown::after { display: none; } /* hover bridge not needed on mobile */
 
             .nav-dropdown-menu.is-open { display: block; }
         }
@@ -273,10 +276,10 @@
             <a href="#all" data-filter="all" class="active">All NASA images</a>
 
             <div class="nav-dropdown" id="launchesDropdown">
-                <button class="nav-dropbtn" type="button">LAUNCHES</button>
-                <div class="nav-dropdown-menu">
-                    <a href="#artemis2" data-filter="artemis2">Artemis II</a>
-                    <a href="#crew12" data-filter="crew12">Crew-12</a>
+                <button class="nav-dropbtn" type="button" aria-haspopup="true" aria-expanded="false">LAUNCHES</button>
+                <div class="nav-dropdown-menu" role="menu" aria-label="Launches">
+                    <a href="#artemis2" data-filter="artemis2" role="menuitem">Artemis II</a>
+                    <a href="#crew12" data-filter="crew12" role="menuitem">Crew-12</a>
                 </div>
             </div>
 
@@ -340,6 +343,11 @@ function setActiveFilterLink(key){
 
     const btn = document.querySelector(".nav-dropbtn");
     if (btn) btn.classList.toggle("active", key === "artemis2" || key === "crew12");
+
+    // Active underline on dropdown items too
+    document.querySelectorAll(".nav-dropdown-menu a[data-filter]").forEach(a => {
+        a.classList.toggle("active", a.dataset.filter === key);
+    });
 }
 
 async function main(){
@@ -391,8 +399,14 @@ async function main(){
     let items = applyFilter(allItems, currentFilter);
     let idx = 0;
 
+    const observer = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+            if (e.isIntersecting) appendNextBatch();
+        }
+    }, { root: null, rootMargin: "1200px 0px", threshold: 0 });
+
     function appendNextBatch() {
-        if (idx >= items.length) return;
+        if (idx >= items.length) { observer.disconnect(); return; }
 
         const frag = document.createDocumentFragment();
         const end = Math.min(idx + BATCH_SIZE, items.length);
@@ -400,20 +414,40 @@ async function main(){
         galleryEl.appendChild(frag);
 
         if (hasJG) jQuery("#gallery").justifiedGallery("norewind");
+
+        if (idx >= items.length) observer.disconnect();
     }
 
     function resetGalleryForFilter(newFilter){
         currentFilter = newFilter;
         setActiveFilterLink(currentFilter);
+
         items = applyFilter(allItems, currentFilter);
+
         galleryEl.innerHTML = "";
         idx = 0;
+
         destroyJG();
         initJG();
+
+        observer.disconnect();
+        observer.observe(loaderEl);
+
         appendNextBatch();
+
+        // close mobile dropdown after choosing a filter
+        const dd = document.getElementById("launchesDropdown");
+        if (dd && window.matchMedia("(max-width: 520px)").matches) {
+            const btn = dd.querySelector(".nav-dropbtn");
+            const menu = dd.querySelector(".nav-dropdown-menu");
+            if (btn && menu) {
+                menu.classList.remove("is-open");
+                btn.setAttribute("aria-expanded", "false");
+            }
+        }
     }
 
-    document.querySelectorAll("#filters a[data-filter]").forEach(a => {
+    document.querySelectorAll("#filters a[data-filter], .nav-dropdown-menu a[data-filter]").forEach(a => {
         a.addEventListener("click", (ev) => {
             ev.preventDefault();
             const f = a.dataset.filter || "all";
@@ -422,8 +456,40 @@ async function main(){
         });
     });
 
+    // Mobile tap-to-open for LAUNCHES
+    (function(){
+        const dd = document.getElementById("launchesDropdown");
+        if (!dd) return;
+
+        const btn = dd.querySelector(".nav-dropbtn");
+        const menu = dd.querySelector(".nav-dropdown-menu");
+        if (!btn || !menu) return;
+
+        btn.addEventListener("click", (ev) => {
+            if (window.matchMedia("(max-width: 520px)").matches) {
+                ev.preventDefault();
+                const open = menu.classList.toggle("is-open");
+                btn.setAttribute("aria-expanded", open ? "true" : "false");
+            }
+        });
+
+        // tap outside closes on mobile
+        document.addEventListener("click", (ev) => {
+            if (!window.matchMedia("(max-width: 520px)").matches) return;
+            if (dd.contains(ev.target)) return;
+            menu.classList.remove("is-open");
+            btn.setAttribute("aria-expanded", "false");
+        });
+    })();
+
+    window.addEventListener("hashchange", () => {
+        const f = getFilterFromHash();
+        if (f !== currentFilter) resetGalleryForFilter(f);
+    });
+
     setActiveFilterLink(currentFilter);
     initJG();
+    observer.observe(loaderEl);
     appendNextBatch();
 }
 
