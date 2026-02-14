@@ -103,9 +103,16 @@
             position: relative;
             display: inline-flex;
             align-items: center;
+        }
 
-            /* Hover bridge */
-            padding-bottom: 10px;
+        /* Invisible hover bridge (does not affect layout height) */
+        .nav-dropdown::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            height: 12px;
         }
 
         .nav-dropbtn {
@@ -135,9 +142,9 @@
             display: none;
             position: absolute;
 
-            /* flush to button, no dead gap */
             top: 100%;
             left: 0;
+            margin-top: 10px;   /* visual spacing without breaking hover */
 
             min-width: 190px;
             background: #0a0a0a;
@@ -159,7 +166,6 @@
         @media (min-width: 521px) {
             .nav-dropdown:hover .nav-dropdown-menu { display: block; }
         }
-
         /* ===== Gallery ===== */
 
         .gallery-wrap {
