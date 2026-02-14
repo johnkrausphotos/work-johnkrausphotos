@@ -14,9 +14,9 @@
 
         :root {
             --wrap: 2200px;
-            --sidepad: 12px;        /* header/nav padding */
-            --gallery-pad: 8px;     /* desired gallery edge padding */
-            --gap: 16px;            /* spacing between images */
+            --sidepad: 12px;
+            --gallery-pad: 8px;
+            --gap: 16px;
             --rowh: 280px;
 
             --jk-blue: #009cff;
@@ -31,7 +31,6 @@
             color: #fff;
         }
 
-        /* Header/nav container */
         .wrap {
             max-width: var(--wrap);
             margin: 0 auto;
@@ -43,7 +42,6 @@
         header { border-bottom: none; }
         header .wrap { padding-top: 26px; padding-bottom: 6px; }
 
-        /* Title (desktop/base) */
         .site-title {
             font-family: "Open Sans", system-ui, -apple-system, sans-serif;
             font-weight: 600;
@@ -53,7 +51,7 @@
             line-height: 1.05;
             margin: 0;
             color: var(--jk-blue);
-            white-space: nowrap; /* desktop stays one line */
+            white-space: nowrap;
         }
 
         .site-title .title-line { display: inline; }
@@ -74,12 +72,9 @@
             font-weight: 400;
             font-size: 16px;
             line-height: 1.23;
-            letter-spacing: 0;
             text-transform: uppercase;
-
             color: #ececec;
             text-decoration: none;
-
             padding: 0;
             border-bottom: 2px solid transparent;
         }
@@ -102,11 +97,15 @@
 
         #filters a.home-link:hover { color: #ffffff; }
 
-        /* LAUNCHES dropdown (button styled like links) */
+        /* ===== DROPDOWN FIXED VERSION (no hover gap) ===== */
+
         .nav-dropdown {
             position: relative;
             display: inline-flex;
             align-items: center;
+
+            /* Hover bridge */
+            padding-bottom: 10px;
         }
 
         .nav-dropbtn {
@@ -114,7 +113,6 @@
             font-weight: 400;
             font-size: 16px;
             line-height: 1.23;
-            letter-spacing: 0;
             text-transform: uppercase;
 
             color: #ececec;
@@ -127,6 +125,7 @@
         }
 
         .nav-dropbtn:hover { color: #ffffff; }
+
         .nav-dropbtn.active {
             color: #ffffff;
             border-bottom-color: #ffffff;
@@ -135,8 +134,11 @@
         .nav-dropdown-menu {
             display: none;
             position: absolute;
-            top: calc(100% + 10px);
+
+            /* flush to button, no dead gap */
+            top: 100%;
             left: 0;
+
             min-width: 190px;
             background: #0a0a0a;
             border: 1px solid var(--line);
@@ -149,18 +151,17 @@
             padding: 8px 0;
             border-bottom: 0;
             color: rgba(236,236,236,0.9);
-            text-transform: none; /* keep names readable */
-            letter-spacing: 0;
+            text-transform: none;
         }
 
         .nav-dropdown-menu a:hover { color: #ffffff; }
 
-        /* Desktop hover open */
         @media (min-width: 521px) {
             .nav-dropdown:hover .nav-dropdown-menu { display: block; }
         }
 
-        /* Gallery container: ONE place controls edge padding */
+        /* ===== Gallery ===== */
+
         .gallery-wrap {
             max-width: var(--wrap);
             margin: 0 auto;
@@ -176,7 +177,6 @@
         a { color: inherit; }
         #loader { height: 1px; }
 
-        /* Medium breakpoint */
         @media (max-width: 900px) {
             :root {
                 --sidepad: 18px;
@@ -191,10 +191,9 @@
             }
         }
 
-        /* MOBILE ONLY: split + center title, and stack nav */
         @media (max-width: 520px) {
             .site-title {
-                font-size: 32px;          /* keep at 32 on mobile */
+                font-size: 32px;
                 letter-spacing: 0.18em;
                 white-space: normal;
                 line-height: 1.15;
@@ -213,13 +212,12 @@
             }
 
             #filters a {
-                font-size: 16px;          /* mobile-only nav sizing */
+                font-size: 16px;
                 line-height: 1.3;
             }
 
             #filters a.home-link { padding-right: 0; }
 
-            /* Mobile dropdown behavior: button centered, menu static, toggled via JS */
             .nav-dropdown {
                 flex-direction: column;
                 align-items: center;
@@ -227,8 +225,6 @@
 
             .nav-dropdown-menu {
                 position: static;
-                top: auto;
-                left: auto;
                 min-width: 220px;
                 text-align: center;
                 margin-top: 6px;
@@ -240,248 +236,177 @@
 </head>
 
 <body>
-    <header>
-        <div class="wrap">
-            <div class="site-title">
-                <span class="title-line title-line-1">NASA PHOTOGRAPHY</span>
-                <span class="title-line title-line-2">BY JOHN KRAUS</span>
-            </div>
+<header>
+    <div class="wrap">
+        <div class="site-title">
+            <span class="title-line title-line-1">NASA PHOTOGRAPHY</span>
+            <span class="title-line title-line-2">BY JOHN KRAUS</span>
         </div>
-    </header>
+    </div>
+</header>
 
-    <div id="filters-wrap">
-        <div class="wrap">
-            <nav id="filters" aria-label="Filters">
-                <a href="https://www.johnkrausphotos.com" class="home-link">← Return to site homepage</a>
-                <a href="#all" data-filter="all" class="active">All NASA images</a>
+<div id="filters-wrap">
+    <div class="wrap">
+        <nav id="filters" aria-label="Filters">
+            <a href="https://www.johnkrausphotos.com" class="home-link">← Return to site homepage</a>
+            <a href="#all" data-filter="all" class="active">All NASA images</a>
 
-                <!-- LAUNCHES dropdown -->
-                <div class="nav-dropdown" id="launchesDropdown">
-                    <button class="nav-dropbtn" type="button" aria-haspopup="true" aria-expanded="false">LAUNCHES</button>
-                    <div class="nav-dropdown-menu" role="menu" aria-label="Launches">
-                        <a href="#artemis2" data-filter="artemis2" role="menuitem">Artemis II</a>
-                        <a href="#crew12" data-filter="crew12" role="menuitem">Crew-12</a>
-                    </div>
+            <div class="nav-dropdown" id="launchesDropdown">
+                <button class="nav-dropbtn" type="button">LAUNCHES</button>
+                <div class="nav-dropdown-menu">
+                    <a href="#artemis2" data-filter="artemis2">Artemis II</a>
+                    <a href="#crew12" data-filter="crew12">Crew-12</a>
                 </div>
+            </div>
 
-                <a href="#roadshow" data-filter="roadshow">Jan. ’26 Roadshow</a>
-            </nav>
-        </div>
+            <a href="#roadshow" data-filter="roadshow">Jan. ’26 Roadshow</a>
+        </nav>
     </div>
+</div>
 
-    <div class="gallery-wrap">
-        <div id="gallery"></div>
-    </div>
+<div class="gallery-wrap">
+    <div id="gallery"></div>
+</div>
 
-    <div id="loader"></div>
+<div id="loader"></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
 
-    <script>
-        const BATCH_SIZE = 100;
+<script>
+const BATCH_SIZE = 100;
 
-        function normalize(s){ return (s || "").toString().toLowerCase(); }
+function normalize(s){ return (s || "").toString().toLowerCase(); }
 
-        function matchesArtemis2(item){
-            const kws = Array.isArray(item.keywords) ? item.keywords : [];
-            return kws.some(k => normalize(k) === "artemis ii");
-        }
+function matchesArtemis2(item){
+    const kws = Array.isArray(item.keywords) ? item.keywords : [];
+    return kws.some(k => normalize(k) === "artemis ii");
+}
 
-        // Crew-12 keyword match: DO NOT strip/normalize the dash (match exact "crew-12" after lowercasing)
-        function matchesCrew12(item){
-            const kws = Array.isArray(item.keywords) ? item.keywords : [];
-            return kws.some(k => normalize(k) === "crew-12");
-        }
+function matchesCrew12(item){
+    const kws = Array.isArray(item.keywords) ? item.keywords : [];
+    return kws.some(k => normalize(k) === "crew-12");
+}
 
-        function isJan2026(item){
-            const d = (item.id_date || "");
-            return d.startsWith("2026:01:");
-        }
+function isJan2026(item){
+    const d = (item.id_date || "");
+    return d.startsWith("2026:01:");
+}
 
-        function matchesRoadshowJan2026(item){
-            return isJan2026(item) && normalize(item.caption).includes("roadshow");
-        }
+function matchesRoadshowJan2026(item){
+    return isJan2026(item) && normalize(item.caption).includes("roadshow");
+}
 
-        function applyFilter(items, key){
-            if (key === "artemis2") return items.filter(matchesArtemis2);
-            if (key === "crew12") return items.filter(matchesCrew12);
-            if (key === "roadshow") return items.filter(matchesRoadshowJan2026);
-            return items;
-        }
+function applyFilter(items, key){
+    if (key === "artemis2") return items.filter(matchesArtemis2);
+    if (key === "crew12") return items.filter(matchesCrew12);
+    if (key === "roadshow") return items.filter(matchesRoadshowJan2026);
+    return items;
+}
 
-        function getFilterFromHash(){
-            const h = (location.hash || "").replace("#", "");
-            if (h === "artemis2") return "artemis2";
-            if (h === "crew12") return "crew12";
-            if (h === "roadshow") return "roadshow";
-            return "all";
-        }
+function getFilterFromHash(){
+    const h = (location.hash || "").replace("#", "");
+    if (h === "artemis2") return "artemis2";
+    if (h === "crew12") return "crew12";
+    if (h === "roadshow") return "roadshow";
+    return "all";
+}
 
-        function setActiveFilterLink(key){
-            document.querySelectorAll("#filters a").forEach(a => {
-                a.classList.toggle("active", a.dataset.filter === key);
-            });
+function setActiveFilterLink(key){
+    document.querySelectorAll("#filters a").forEach(a => {
+        a.classList.toggle("active", a.dataset.filter === key);
+    });
 
-            const isLaunch = (key === "artemis2" || key === "crew12");
-            const btn = document.querySelector("#launchesDropdown .nav-dropbtn");
-            if (btn) btn.classList.toggle("active", isLaunch);
-        }
+    const btn = document.querySelector(".nav-dropbtn");
+    if (btn) btn.classList.toggle("active", key === "artemis2" || key === "crew12");
+}
 
-        async function main(){
-            const galleryEl = document.getElementById("gallery");
-            const loaderEl = document.getElementById("loader");
+async function main(){
+    const galleryEl = document.getElementById("gallery");
+    const loaderEl = document.getElementById("loader");
 
-            const res = await fetch("./gallery.json", { cache: "no-store" });
-            if (!res.ok) return;
+    const res = await fetch("./gallery.json", { cache: "no-store" });
+    if (!res.ok) return;
 
-            const allItems = await res.json();
-            if (!allItems.length) return;
+    const allItems = await res.json();
+    if (!allItems.length) return;
 
-            const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
+    const hasJG = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.justifiedGallery === "function");
 
-            function cssVarNumber(name, fallback){
-                const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-                const n = parseFloat(v);
-                return Number.isFinite(n) ? n : fallback;
-            }
+    function initJG(){
+        if (!hasJG) return;
+        jQuery("#gallery").justifiedGallery({
+            rowHeight: 280,
+            margins: 16,
+            lastRow: "nojustify"
+        });
+    }
 
-            function initJG(){
-                if (!hasJG) return;
-                jQuery("#gallery").justifiedGallery({
-                    rowHeight: cssVarNumber("--rowh", 280),
-                    margins: cssVarNumber("--gap", 16),
-                    lastRow: "nojustify"
-                });
-            }
+    function destroyJG(){
+        if (!hasJG) return;
+        try { jQuery("#gallery").justifiedGallery("destroy"); } catch (_) {}
+    }
 
-            function destroyJG(){
-                if (!hasJG) return;
-                try { jQuery("#gallery").justifiedGallery("destroy"); } catch (_) {}
-            }
+    function makeAnchor(it) {
+        const full = it.full_url || it.image_url;
+        const display = it.large_url || it.medium_url || it.image_url || it.full_url;
 
-            function makeAnchor(it) {
-                const full = it.full_url || it.image_url;
-                const display = it.large_url || it.medium_url || it.image_url || it.full_url;
+        const a = document.createElement("a");
+        a.href = full;
+        a.target = "_blank";
+        a.rel = "noopener";
 
-                const a = document.createElement("a");
-                a.href = full;
-                a.target = "_blank";
-                a.rel = "noopener";
+        const img = document.createElement("img");
+        img.alt = it.title || it.nasa_id || "";
+        img.src = display;
+        img.loading = "lazy";
+        img.onerror = () => { if (full && img.src !== full) img.src = full; };
 
-                const img = document.createElement("img");
-                img.alt = it.title || it.nasa_id || "";
-                img.src = display;
-                img.loading = "lazy";
-                img.onerror = () => { if (full && img.src !== full) img.src = full; };
+        a.appendChild(img);
+        return a;
+    }
 
-                a.appendChild(img);
-                return a;
-            }
+    let currentFilter = getFilterFromHash();
+    let items = applyFilter(allItems, currentFilter);
+    let idx = 0;
 
-            let currentFilter = getFilterFromHash();
-            let items = applyFilter(allItems, currentFilter);
-            let idx = 0;
-            let isAppending = false;
+    function appendNextBatch() {
+        if (idx >= items.length) return;
 
-            const observer = new IntersectionObserver((entries) => {
-                for (const e of entries) {
-                    if (e.isIntersecting) appendNextBatch();
-                }
-            }, { root: null, rootMargin: "1200px 0px", threshold: 0 });
+        const frag = document.createDocumentFragment();
+        const end = Math.min(idx + BATCH_SIZE, items.length);
+        for (; idx < end; idx++) frag.appendChild(makeAnchor(items[idx]));
+        galleryEl.appendChild(frag);
 
-            function appendNextBatch() {
-                if (isAppending) return;
-                if (idx >= items.length) { observer.disconnect(); return; }
+        if (hasJG) jQuery("#gallery").justifiedGallery("norewind");
+    }
 
-                isAppending = true;
+    function resetGalleryForFilter(newFilter){
+        currentFilter = newFilter;
+        setActiveFilterLink(currentFilter);
+        items = applyFilter(allItems, currentFilter);
+        galleryEl.innerHTML = "";
+        idx = 0;
+        destroyJG();
+        initJG();
+        appendNextBatch();
+    }
 
-                const frag = document.createDocumentFragment();
-                const end = Math.min(idx + BATCH_SIZE, items.length);
-                for (; idx < end; idx++) frag.appendChild(makeAnchor(items[idx]));
-                galleryEl.appendChild(frag);
+    document.querySelectorAll("#filters a[data-filter]").forEach(a => {
+        a.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            const f = a.dataset.filter || "all";
+            location.hash = f;
+            resetGalleryForFilter(f);
+        });
+    });
 
-                if (hasJG) jQuery("#gallery").justifiedGallery("norewind");
+    setActiveFilterLink(currentFilter);
+    initJG();
+    appendNextBatch();
+}
 
-                isAppending = false;
-
-                if (idx >= items.length) observer.disconnect();
-            }
-
-            function resetGalleryForFilter(newFilter){
-                currentFilter = newFilter;
-                setActiveFilterLink(currentFilter);
-
-                items = applyFilter(allItems, currentFilter);
-
-                galleryEl.innerHTML = "";
-                idx = 0;
-                isAppending = false;
-
-                destroyJG();
-                initJG();
-
-                observer.disconnect();
-                observer.observe(loaderEl);
-
-                appendNextBatch();
-
-                // Close mobile dropdown after selection (if open)
-                const menu = document.querySelector("#launchesDropdown .nav-dropdown-menu");
-                const btn = document.querySelector("#launchesDropdown .nav-dropbtn");
-                if (menu && btn && window.matchMedia("(max-width: 520px)").matches) {
-                    menu.classList.remove("is-open");
-                    btn.setAttribute("aria-expanded", "false");
-                }
-            }
-
-            document.querySelectorAll("#filters a[data-filter]").forEach(a => {
-                a.addEventListener("click", (ev) => {
-                    ev.preventDefault();
-                    const f = a.dataset.filter || "all";
-                    location.hash = (f === "all") ? "all" : f;
-                    resetGalleryForFilter(f);
-                });
-            });
-
-            // Mobile tap-to-open for LAUNCHES
-            (function(){
-                const dd = document.getElementById("launchesDropdown");
-                if (!dd) return;
-
-                const btn = dd.querySelector(".nav-dropbtn");
-                const menu = dd.querySelector(".nav-dropdown-menu");
-                if (!btn || !menu) return;
-
-                btn.addEventListener("click", (ev) => {
-                    if (window.matchMedia("(max-width: 520px)").matches) {
-                        ev.preventDefault();
-                        const open = menu.classList.toggle("is-open");
-                        btn.setAttribute("aria-expanded", open ? "true" : "false");
-                    }
-                });
-
-                // Click outside closes on mobile
-                document.addEventListener("click", (ev) => {
-                    if (!window.matchMedia("(max-width: 520px)").matches) return;
-                    if (dd.contains(ev.target)) return;
-                    menu.classList.remove("is-open");
-                    btn.setAttribute("aria-expanded", "false");
-                });
-            })();
-
-            window.addEventListener("hashchange", () => {
-                const f = getFilterFromHash();
-                if (f !== currentFilter) resetGalleryForFilter(f);
-            });
-
-            setActiveFilterLink(currentFilter);
-            initJG();
-            observer.observe(loaderEl);
-            appendNextBatch();
-        }
-
-        main().catch(() => {});
-    </script>
+main().catch(() => {});
+</script>
 </body>
 </html>
