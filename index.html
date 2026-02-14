@@ -250,9 +250,12 @@
 
             .nav-dropdown-menu {
                 position: static;
-                min-width: 220px;
+                width: max-content;     /* shrink to longest item */
+                min-width: 0;           /* remove forced width */
                 text-align: center;
                 margin-top: 8px;
+                margin-left: auto;      /* center under LAUNCHES */
+                margin-right: auto;
             }
 
             .nav-dropdown::after { display: none; } /* hover bridge not needed on mobile */
